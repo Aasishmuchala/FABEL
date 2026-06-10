@@ -2,11 +2,14 @@
  * POST /api/ingest/events — edge box reports a camera event
  * (offline / tamper / degraded / power).
  *
- * Log-and-acknowledge stub: validates shape, logs, returns the payload.
+ * Log-and-acknowledge stub: validates shape + site existence, logs, returns
+ * the payload.
  * TODO(edge integration): open a SiteAlert via the store (auto-resolve the
  * matching open alert on a recovery event), and write the no-footage window
  * into the day's ledger summary so downtime is billable evidence.
  */
+
+import { getSite } from '@/lib/store';
 
 const EVENT_TYPES = ['offline', 'tamper', 'degraded', 'power'] as const;
 type IngestEventType = (typeof EVENT_TYPES)[number];
@@ -59,6 +62,13 @@ export async function POST(req: Request) {
     return Response.json(
       { error: `Bad request body — expected ${EXPECTED_SHAPE}` },
       { status: 400 },
+    );
+  }
+
+  if (!getSite(payload.siteId)) {
+    return Response.json(
+      { error: `Unknown siteId "${payload.siteId}" — site is not registered` },
+      { status: 404 },
     );
   }
 

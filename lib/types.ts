@@ -1,4 +1,17 @@
 export type SiteStatus = 'calibrated' | 'calibrating';
+export type StageStatus = 'verified' | 'in-progress' | 'locked';
+export type MaterialCategory =
+  | 'cement'
+  | 'steel'
+  | 'bricks'
+  | 'sand'
+  | 'aggregate'
+  | 'shuttering'
+  | 'electrical'
+  | 'plumbing'
+  | 'tiles'
+  | 'paint';
+export type MaterialOrderStatus = 'placed' | 'delivered';
 export type CameraKind = 'gate' | 'zone' | 'solar';
 export type CameraStatus = 'online' | 'offline' | 'degraded';
 export type Confidence = 'calibrated' | 'calibrating';
@@ -88,7 +101,73 @@ export interface EvidenceClip {
   durationSec: number;
 }
 
+/** Construction stage with a quality gate; materials unlock stage-by-stage. */
+export interface Stage {
+  id: string;
+  siteId: string;
+  name: string;
+  /** 1-based position in the build sequence. */
+  order: number;
+  status: StageStatus;
+  /** Date (YYYY-MM-DD) the quality gate passed; only on 'verified' stages. */
+  verifiedOn?: string;
+  gateNote?: string;
+}
+
+/** Bill-of-quantities line budgeted for one stage of one site. */
+export interface BoqItem {
+  id: string;
+  siteId: string;
+  stageId: string;
+  description: string;
+  category: MaterialCategory;
+  qty: number;
+  unit: string;
+  /** Budget rate in ₹ per unit (vendor priceFactor applies on order). */
+  ratePerUnit: number;
+}
+
+export interface Vendor {
+  id: string;
+  name: string;
+  city: string;
+  categories: MaterialCategory[];
+  /** Out of 5, e.g. 4.6 */
+  rating: number;
+  deliveryDays: number;
+  /** Multiplier on BOQ rate, e.g. 0.96 = 4% below budget. */
+  priceFactor: number;
+  gstin: string;
+  paymentTerms: string;
+}
+
+export interface OrderLine {
+  boqItemId: string;
+  description: string;
+  qty: number;
+  unit: string;
+  /** ₹/unit actually paid = round(boq rate × vendor priceFactor). */
+  ratePerUnit: number;
+  lineTotal: number;
+}
+
+export interface MaterialOrder {
+  id: string;
+  siteId: string;
+  stageId: string;
+  vendorId: string;
+  lines: OrderLine[];
+  subtotalInr: number;
+  gstPct: 18;
+  totalInr: number;
+  status: MaterialOrderStatus;
+  placedOn: string;
+  etaDate: string;
+}
+
 export interface Db {
+  /** Bumped when the seed shape changes; older db.json files regenerate. */
+  seedVersion: number;
   sites: Site[];
   cameras: Camera[];
   dailyCounts: DailyCount[];
@@ -97,4 +176,8 @@ export interface Db {
   alerts: SiteAlert[];
   ledger: LedgerEntry[];
   clips: EvidenceClip[];
+  stages: Stage[];
+  boqItems: BoqItem[];
+  vendors: Vendor[];
+  orders: MaterialOrder[];
 }

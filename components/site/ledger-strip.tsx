@@ -23,17 +23,19 @@ export function LedgerStrip({ entries }: { entries: LedgerEntry[] }) {
               className={cn(
                 'flex flex-col gap-1.5 rounded-xl border px-3 py-2.5',
                 tampered
-                  ? 'border-red/40 bg-red/5'
-                  : 'border-line bg-surface',
+                  ? 'border-danger/30 bg-danger-bg'
+                  : 'border-hairline bg-surface',
               )}
             >
               <span
                 className={cn(
-                  'flex items-center gap-1 text-[11px] uppercase tracking-[0.14em]',
-                  tampered ? 'text-red' : 'text-muted',
+                  'flex items-center gap-1 text-[12px] font-medium',
+                  tampered ? 'text-danger' : 'text-muted',
                 )}
               >
-                {tampered ? <ShieldAlert size={11} aria-hidden /> : null}
+                {tampered ? (
+                  <ShieldAlert size={12} strokeWidth={1.75} aria-hidden />
+                ) : null}
                 {formatDateShort(entry.date)}
               </span>
               <HashChip hash={entry.hash} />

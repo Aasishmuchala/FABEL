@@ -26,10 +26,10 @@ export function FilterChips({
             href={item.href}
             aria-current={isActive ? 'page' : undefined}
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+              'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors',
               isActive
-                ? 'border-teal/40 bg-teal/12 text-teal'
-                : 'border-line text-muted hover:border-white/15 hover:text-text',
+                ? 'bg-text text-white'
+                : 'bg-black/[0.05] text-muted hover:bg-black/[0.09] hover:text-text',
             )}
           >
             {item.label}

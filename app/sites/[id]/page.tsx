@@ -1,14 +1,26 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { DoorOpen, Film, ShieldAlert, ShieldCheck, VideoOff } from 'lucide-react';
 import {
+  ArrowRight,
+  DoorOpen,
+  Film,
+  Play,
+  ShieldAlert,
+  ShieldCheck,
+  VideoOff,
+} from 'lucide-react';
+import {
+  getBoq,
   getCameras,
   getClips,
   getDailyCounts,
   getLatestDailyCount,
   getLedger,
+  getOrderedQty,
   getReconciliations,
   getSite,
+  getStages,
   mondayOf,
   verifyLedger,
 } from '@/lib/store';
@@ -20,6 +32,7 @@ import { LiveTile } from '@/components/ui/live-tile';
 import { RangeBar } from '@/components/ui/range-bar';
 import { SectionHeader } from '@/components/ui/section-header';
 import { StatCard } from '@/components/ui/stat-card';
+import { InsightsCard } from '@/components/insights/insights-card';
 import { CameraCard } from '@/components/site/camera-card';
 import { ClipList } from '@/components/site/clip-list';
 import { LedgerChart } from '@/components/site/ledger-chart';
@@ -95,15 +108,37 @@ export default async function SiteDetailPage({
 
   const clips = getClips(id);
 
+  // Procurement summary: the open stage plus ordered % by BOQ value.
+  const stages = getStages(id);
+  const openStage = stages.find((s) => s.status === 'in-progress');
+  let orderedPct: number | null = null;
+  if (openStage) {
+    let budget = 0;
+    let orderedValue = 0;
+    for (const item of getBoq(id, openStage.id)) {
+      budget += item.qty * item.ratePerUnit;
+      orderedValue +=
+        Math.min(getOrderedQty(item.id), item.qty) * item.ratePerUnit;
+    }
+    orderedPct = budget > 0 ? Math.round((orderedValue / budget) * 100) : 0;
+  }
+
+  // Compact live preview: gate cams first, then the solar mast — max three.
+  const previewCams = [
+    ...gateCams,
+    ...(solarCam ? [solarCam] : []),
+    ...cameras.filter((c) => c.kind === 'zone'),
+  ].slice(0, 3);
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       {/* page header */}
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.14em] text-muted">
+          <p className="text-[13px] font-medium text-muted">
             {site.city} · {site.contractor}
           </p>
-          <h1 className="mt-1 font-display text-2xl font-bold text-text">
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-text">
             {site.name}
           </h1>
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -125,10 +160,10 @@ export default async function SiteDetailPage({
           </div>
         </div>
         <div className="text-right">
-          <p className="text-[11px] uppercase tracking-[0.14em] text-muted">
+          <p className="text-[13px] font-medium text-muted">
             Detected savings this month
           </p>
-          <p className="mt-1 font-display text-2xl font-bold tabular-nums text-teal">
+          <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums text-ok">
             {formatInr(savings30)}
           </p>
         </div>
@@ -144,14 +179,14 @@ export default async function SiteDetailPage({
         {todayCount ? (
           <div className="grid gap-4 sm:grid-cols-3">
             <Card>
-              <p className="text-[11px] uppercase tracking-[0.14em] text-muted">
+              <p className="text-[13px] font-medium text-muted">
                 Verified on site now
               </p>
               <div className="mt-2 flex items-baseline gap-2">
-                <span className="font-display text-3xl font-bold tabular-nums text-text">
+                <span className="text-4xl font-semibold tracking-tight tabular-nums text-text">
                   {formatRange(todayCount.verifiedMin, todayCount.verifiedMax)}
                 </span>
-                <span className="text-xs font-medium text-teal">workers</span>
+                <span className="text-[13px] font-medium text-ok">workers</span>
               </div>
               <RangeBar
                 min={todayCount.verifiedMin}
@@ -159,7 +194,7 @@ export default async function SiteDetailPage({
                 showLabels={false}
                 className="mt-3"
               />
-              <p className="mt-2 text-xs text-muted">
+              <p className="mt-2 text-[13px] text-muted">
                 {todayCount.confidence === 'calibrated'
                   ? 'Calibrated gate count'
                   : 'Calibrating — range still settling'}
@@ -196,12 +231,28 @@ export default async function SiteDetailPage({
         )}
       </section>
 
+      {/* site intelligence */}
+      <section>
+        <InsightsCard siteId={id} />
+      </section>
+
       {/* live view */}
       <section className="space-y-4">
         <SectionHeader
           title="Live view"
           label="On-demand video"
           description="Connects to the site over WebRTC — video streams only while you watch."
+          actions={
+            cameras.length > 0 ? (
+              <Link
+                href={`/sites/${id}/live`}
+                className="inline-flex h-10 items-center gap-2 rounded-full bg-accent px-5 text-[14px] font-medium text-white transition-opacity hover:opacity-90"
+              >
+                <Play size={16} strokeWidth={1.75} aria-hidden />
+                Open live view
+              </Link>
+            ) : null
+          }
         />
         {cameras.length === 0 ? (
           <EmptyState
@@ -210,19 +261,65 @@ export default async function SiteDetailPage({
             description="Live tiles appear here once cameras are wired into the site's edge AI box."
           />
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {gateCams.map((cam) => (
-              <LiveTile key={cam.id} label={cam.name} status={cam.status} />
-            ))}
-            {solarCam ? (
+          <Link
+            href={`/sites/${id}/live`}
+            aria-label={`Open live view for ${site.name}`}
+            className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+          >
+            {previewCams.map((cam) => (
               <LiveTile
-                label="Site overview — solar mast"
-                status={solarCam.status}
-                className="sm:col-span-2"
+                key={cam.id}
+                label={cam.kind === 'solar' ? 'Site overview — solar mast' : cam.name}
+                status={cam.status}
               />
-            ) : null}
-          </div>
+            ))}
+          </Link>
         )}
+      </section>
+
+      {/* procurement summary */}
+      <section className="space-y-4">
+        <SectionHeader
+          title="Procurement"
+          label="Quality-gated materials"
+          description="Materials unlock stage by stage as quality gates pass."
+        />
+        <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-5 rounded-[18px] border border-hairline bg-surface p-6 shadow-card">
+          <div className="min-w-0">
+            <p className="text-[13px] font-medium text-muted">Stage in progress</p>
+            <p className="mt-1 truncate text-lg font-semibold tracking-tight text-text">
+              {openStage ? openStage.name : 'No stage open'}
+            </p>
+            <p className="mt-0.5 text-[13px] text-muted">
+              {openStage
+                ? `Stage ${openStage.order} of ${stages.length} · quality gate open`
+                : 'All gates closed for materials'}
+            </p>
+          </div>
+          {orderedPct !== null ? (
+            <div>
+              <p className="text-[13px] font-medium text-muted">
+                Materials ordered
+              </p>
+              <p className="mt-1 text-lg font-semibold tracking-tight tabular-nums text-text">
+                {orderedPct}%
+              </p>
+              <div className="mt-1.5 h-1.5 w-36 rounded-full bg-black/[0.06]">
+                <div
+                  className="h-1.5 rounded-full bg-chart-green"
+                  style={{ width: `${orderedPct}%` }}
+                />
+              </div>
+            </div>
+          ) : null}
+          <Link
+            href={`/procurement?site=${site.id}`}
+            className="inline-flex h-10 items-center gap-1.5 rounded-full bg-black/[0.05] px-5 text-[14px] font-medium text-text transition-colors hover:bg-black/[0.09]"
+          >
+            Open procurement
+            <ArrowRight size={15} strokeWidth={1.75} aria-hidden />
+          </Link>
+        </div>
       </section>
 
       {/* 60-day ledger */}
@@ -290,10 +387,15 @@ export default async function SiteDetailPage({
         />
         <LedgerStrip entries={recentLedger} />
         {tamperEntry ? (
-          <div className="flex items-start gap-3 rounded-xl border border-red/30 bg-red/5 p-4">
-            <ShieldAlert size={16} className="mt-0.5 shrink-0 text-red" aria-hidden />
+          <div className="flex items-start gap-3 rounded-[18px] border border-danger/20 bg-danger-bg p-4">
+            <ShieldAlert
+              size={16}
+              strokeWidth={1.75}
+              className="mt-0.5 shrink-0 text-danger"
+              aria-hidden
+            />
             <div>
-              <p className="text-[11px] uppercase tracking-[0.14em] text-red">
+              <p className="text-[13px] font-medium text-danger">
                 Tamper event on ledger
               </p>
               <p className="mt-1 text-sm text-text">{tamperEntry.summary}</p>

@@ -5,8 +5,8 @@ function clampPct(pct: number): number {
 }
 
 /**
- * Horizontal track with a bright teal band from verifiedMin to verifiedMax
- * and a thin amber marker at the billed value (when provided).
+ * Horizontal track with a green verified band from verifiedMin to verifiedMax
+ * and a thin dark marker at the billed value (when provided).
  */
 export function RangeBar({
   min,
@@ -18,7 +18,7 @@ export function RangeBar({
 }: {
   min: number;
   max: number;
-  /** Billed labour-days for the same window — rendered as an amber marker. */
+  /** Billed labour-days for the same window — rendered as a thin dark marker. */
   billed?: number;
   /** Override the track's right edge; defaults to 115% of the largest value. */
   domainMax?: number;
@@ -32,25 +32,25 @@ export function RangeBar({
 
   return (
     <div className={cn('w-full', className)}>
-      <div className="relative h-1.5 w-full rounded-full bg-white/5">
+      <div className="relative h-1.5 w-full rounded-full bg-black/[0.06]">
         <div
-          className="absolute inset-y-0 rounded-full bg-teal"
+          className="absolute inset-y-0 rounded-full bg-chart-green"
           style={{ left: `${minPct}%`, width: `${Math.max(maxPct - minPct, 1.5)}%` }}
         />
         {billedPct !== null ? (
           <div
-            className="absolute -inset-y-1 w-0.5 rounded-full bg-amber"
+            className="absolute -inset-y-1 w-0.5 rounded-full bg-text"
             style={{ left: `${billedPct}%` }}
           />
         ) : null}
       </div>
       {showLabels ? (
-        <div className="mt-1.5 flex items-baseline justify-between text-[11px] tabular-nums">
-          <span className="font-medium text-teal">
+        <div className="mt-1.5 flex items-baseline justify-between text-[12px] tabular-nums">
+          <span className="font-medium text-ok">
             {formatRange(min, max)} verified
           </span>
           {billed !== undefined ? (
-            <span className="font-medium text-amber">{billed} billed</span>
+            <span className="font-medium text-text">{billed} billed</span>
           ) : null}
         </div>
       ) : null}

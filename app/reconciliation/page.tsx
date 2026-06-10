@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Inbox, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Inbox, ShieldAlert, ShieldCheck } from 'lucide-react';
 import {
   getBills,
   getClips,
@@ -90,14 +90,14 @@ export default async function ReconciliationPage({
   const totalSavings = reconciliations.reduce((s, r) => s + r.savingsInr, 0);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       {/* Page header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.14em] text-muted">
+          <p className="text-[13px] font-medium text-muted">
             Contractor bills vs verified ledger
           </p>
-          <h1 className="mt-1 font-display text-2xl font-bold text-text">
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-text">
             Reconciliation
           </h1>
         </div>
@@ -133,10 +133,10 @@ export default async function ReconciliationPage({
               href={`/reconciliation?site=${site.id}`}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors',
+                'rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors',
                 active
-                  ? 'border-teal/40 bg-teal/12 text-teal'
-                  : 'border-line bg-surface text-muted hover:border-white/15 hover:text-text',
+                  ? 'bg-text text-white'
+                  : 'bg-black/[0.05] text-muted hover:bg-black/[0.09] hover:text-text',
               )}
             >
               {site.name}
@@ -189,7 +189,7 @@ export default async function ReconciliationPage({
             description="Reconcile the first bill above to start the history."
           />
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-line bg-surface transition-colors hover:border-white/15">
+          <div className="overflow-hidden rounded-[18px] border border-hairline bg-surface shadow-card">
             <Table>
               <THead>
                 <TR>
@@ -237,7 +237,7 @@ export default async function ReconciliationPage({
                             domainMax={domainMax}
                             showLabels={false}
                           />
-                          <p className="mt-1 text-[11px] tabular-nums text-teal">
+                          <p className="mt-1 text-[12px] font-medium tabular-nums text-ok">
                             {formatRange(r.verifiedMin, r.verifiedMax)} verified
                           </p>
                         </div>
@@ -249,7 +249,7 @@ export default async function ReconciliationPage({
                       </TD>
                       <TD
                         align="right"
-                        className={r.savingsInr > 0 ? 'text-teal' : 'text-muted'}
+                        className={r.savingsInr > 0 ? 'text-ok' : 'text-muted'}
                       >
                         {r.savingsInr > 0 ? formatInr(r.savingsInr) : '—'}
                       </TD>
@@ -277,6 +277,15 @@ export default async function ReconciliationPage({
             </Table>
           </div>
         )}
+        {reconciliations.some((r) => r.flag !== 'ok') ? (
+          <Link
+            href={`/procurement?site=${selected.id}`}
+            className="inline-flex items-center gap-1 text-[13px] font-medium text-accent transition-opacity hover:opacity-80"
+          >
+            View procurement impact
+            <ArrowRight size={13} strokeWidth={1.75} aria-hidden />
+          </Link>
+        ) : null}
       </section>
 
       {/* Summary footer strip */}
@@ -284,32 +293,30 @@ export default async function ReconciliationPage({
         <Card>
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.14em] text-muted">
-                Total billed
-              </p>
-              <p className="mt-1 font-display text-2xl font-bold tabular-nums text-text">
+              <p className="text-[13px] font-medium text-muted">Total billed</p>
+              <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums text-text">
                 {totalBilled.toLocaleString('en-IN')}
-                <span className="ml-1.5 text-sm font-normal text-muted">
+                <span className="ml-1.5 text-sm font-normal tracking-normal text-muted">
                   labour-days
                 </span>
               </p>
             </div>
             <div>
-              <p className="text-[11px] uppercase tracking-[0.14em] text-muted">
+              <p className="text-[13px] font-medium text-muted">
                 Total verified
               </p>
-              <p className="mt-1 font-display text-2xl font-bold tabular-nums text-teal">
+              <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums text-ok">
                 {formatRange(totalVerifiedMin, totalVerifiedMax)}
-                <span className="ml-1.5 text-sm font-normal text-muted">
+                <span className="ml-1.5 text-sm font-normal tracking-normal text-muted">
                   labour-days
                 </span>
               </p>
             </div>
             <div>
-              <p className="text-[11px] uppercase tracking-[0.14em] text-muted">
+              <p className="text-[13px] font-medium text-muted">
                 Detected savings
               </p>
-              <p className="mt-1 font-display text-2xl font-bold tabular-nums text-teal">
+              <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums text-ok">
                 {formatInr(totalSavings)}
               </p>
             </div>

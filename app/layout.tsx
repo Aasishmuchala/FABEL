@@ -34,18 +34,16 @@ export default function RootLayout({
         {/* App Router root layout: fonts load for every page — rule targets pages/_document. */}
         {/* eslint-disable-next-line @next/next/no-page-custom-font */}
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
           rel="stylesheet"
           precedence="default"
         />
       </head>
       <body className="min-h-full">
         <Nav />
-        <div className="lg:pl-60">
-          <main className="mx-auto w-full max-w-6xl px-6 py-8 pb-24 lg:pb-8">
-            {children}
-          </main>
-        </div>
+        <main className="mx-auto w-full max-w-[1080px] px-6 py-10 pb-28 sm:pb-10">
+          {children}
+        </main>
       </body>
     </html>
   );

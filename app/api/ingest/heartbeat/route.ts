@@ -1,11 +1,14 @@
 /**
  * POST /api/ingest/heartbeat — edge box liveness ping (every few minutes).
  *
- * Log-and-acknowledge stub: validates shape, logs, returns the payload.
+ * Log-and-acknowledge stub: validates shape + site existence, logs, returns
+ * the payload.
  * TODO(edge integration): update Camera.lastSeenIso for the site's cameras,
  * mark cameras offline when heartbeats stop, and open an 'offline' SiteAlert
  * after the grace window so the gap lands in the ledger.
  */
+
+import { getSite } from '@/lib/store';
 
 interface HeartbeatPayload {
   siteId: string;
@@ -54,6 +57,13 @@ export async function POST(req: Request) {
     return Response.json(
       { error: `Bad request body — expected ${EXPECTED_SHAPE}` },
       { status: 400 },
+    );
+  }
+
+  if (!getSite(payload.siteId)) {
+    return Response.json(
+      { error: `Unknown siteId "${payload.siteId}" — site is not registered` },
+      { status: 404 },
     );
   }
 

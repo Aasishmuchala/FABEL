@@ -22,8 +22,8 @@ function toPoints(
 }
 
 /**
- * Pure-SVG sparkline. Primary series in teal (with a faint area fill);
- * optional second series (e.g. billed overlay) as a dashed amber line.
+ * Pure-SVG sparkline. Primary series in chart green (with a faint area fill);
+ * optional second series (e.g. billed overlay) as a dashed orange line.
  */
 export function Sparkline({
   series,
@@ -33,7 +33,7 @@ export function Sparkline({
   className,
 }: {
   series: number[];
-  /** Optional overlay series (e.g. billed) — dashed amber. */
+  /** Optional overlay series (e.g. billed) — dashed orange. */
   series2?: number[];
   width?: number;
   height?: number;
@@ -66,12 +66,16 @@ export function Sparkline({
       role="img"
       aria-label="Trend sparkline"
     >
-      <polygon points={areaPoints} fill="var(--color-teal)" opacity={0.07} />
+      <polygon
+        points={areaPoints}
+        fill="var(--color-chart-green)"
+        opacity={0.08}
+      />
       {series2 && series2.length > 1 ? (
         <polyline
           points={toPoints(series2, lo, hi, width, height, padding)}
           fill="none"
-          stroke="var(--color-amber)"
+          stroke="var(--color-chart-orange)"
           strokeWidth={1.25}
           strokeDasharray="3 3"
           strokeLinejoin="round"
@@ -81,7 +85,7 @@ export function Sparkline({
       <polyline
         points={points}
         fill="none"
-        stroke="var(--color-teal)"
+        stroke="var(--color-chart-green)"
         strokeWidth={1.5}
         strokeLinejoin="round"
         strokeLinecap="round"

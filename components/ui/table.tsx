@@ -46,7 +46,7 @@ export function TR({
   className?: string;
 }) {
   return (
-    <tr className={cn('transition-colors hover:bg-surface-2/40', className)}>
+    <tr className={cn('transition-colors hover:bg-black/[0.02]', className)}>
       {children}
     </tr>
   );
@@ -64,7 +64,7 @@ export function TH({
   return (
     <th
       className={cn(
-        'whitespace-nowrap px-3 py-2.5 text-[11px] font-medium uppercase tracking-[0.14em] text-muted',
+        'whitespace-nowrap px-3 py-2.5 text-[12px] font-medium text-muted',
         align === 'right' && 'text-right',
         className,
       )}
@@ -86,7 +86,7 @@ export function TD({
   return (
     <td
       className={cn(
-        'border-t border-line px-3 py-3 align-middle',
+        'border-t border-hairline px-3 py-3 align-middle',
         align === 'right' && 'text-right tabular-nums',
         className,
       )}

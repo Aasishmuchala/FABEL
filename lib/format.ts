@@ -35,6 +35,23 @@ export function formatDateShort(date: string): string {
   });
 }
 
+/** "18,000 no" / "2,800 kg" — quantity with Indian digit grouping + unit. */
+export function formatQty(qty: number, unit: string): string {
+  return `${qty.toLocaleString('en-IN')} ${unit}`;
+}
+
+/** "Today" | "Tomorrow" | "14 Jun" — delivery ETA label (past ETAs → date). */
+export function formatEta(date: string): string {
+  const target = parseDate(date);
+  target.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((target.getTime() - today.getTime()) / 86_400_000);
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Tomorrow';
+  return formatDateShort(date);
+}
+
 /** "just now" | "8m ago" | "3h ago" | "5d ago" — relative to now. */
 export function relativeTime(iso: string): string {
   const diffMs = Date.now() - parseDate(iso).getTime();

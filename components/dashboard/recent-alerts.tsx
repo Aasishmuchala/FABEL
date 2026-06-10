@@ -27,12 +27,12 @@ const TYPE_LABELS: Record<AlertType, string> = {
   power: 'Power loss',
 };
 
-/** Red for tamper/offline, amber for degraded/power — muted once resolved. */
+/** Red for tamper/offline, orange for degraded/power — muted once resolved. */
 function iconTone(alert: SiteAlert): string {
-  if (alert.resolvedIso) return 'text-muted';
+  if (alert.resolvedIso) return 'bg-black/[0.04] text-muted';
   return alert.type === 'tamper' || alert.type === 'offline'
-    ? 'text-red'
-    : 'text-amber';
+    ? 'bg-danger-bg text-danger'
+    : 'bg-warn-bg text-warn';
 }
 
 function statusVariant(alert: SiteAlert): BadgeVariant {
@@ -74,11 +74,11 @@ export function RecentAlerts({
               >
                 <span
                   className={cn(
-                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/5',
+                    'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl',
                     iconTone(alert),
                   )}
                 >
-                  <Icon size={16} aria-hidden />
+                  <Icon size={16} strokeWidth={1.75} aria-hidden />
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-text">

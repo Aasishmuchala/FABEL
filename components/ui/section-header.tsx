@@ -8,7 +8,7 @@ export function SectionHeader({
   className,
 }: {
   title: string;
-  /** Microlabel rendered above the title. */
+  /** Small sentence-case label rendered above the title. */
   label?: string;
   description?: string;
   /** Right-aligned contextual actions. */
@@ -24,11 +24,9 @@ export function SectionHeader({
     >
       <div>
         {label ? (
-          <p className="text-[11px] uppercase tracking-[0.14em] text-muted">
-            {label}
-          </p>
+          <p className="text-[13px] font-medium text-muted">{label}</p>
         ) : null}
-        <h2 className="mt-1 font-display text-lg font-semibold text-text">
+        <h2 className="mt-1 text-lg font-semibold tracking-tight text-text">
           {title}
         </h2>
         {description ? (

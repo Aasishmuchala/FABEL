@@ -24,7 +24,7 @@ const STATUS_BADGE: Record<CameraStatus, { variant: BadgeVariant; label: string 
 };
 
 /**
- * Camera status card. Degraded/offline units get a full border tint in the
+ * Camera status card. Degraded/offline units get a border tint in the
  * matching status colour, consistent with the badge semantics.
  */
 export function CameraCard({ camera }: { camera: Camera }) {
@@ -34,27 +34,27 @@ export function CameraCard({ camera }: { camera: Camera }) {
   return (
     <div
       className={cn(
-        'rounded-2xl border bg-surface p-5 transition-colors',
-        camera.status === 'online' && 'border-line hover:border-white/15',
-        camera.status === 'degraded' && 'border-amber/35 hover:border-amber/50',
-        camera.status === 'offline' && 'border-red/35 hover:border-red/50',
+        'rounded-[18px] border bg-surface p-5 shadow-card',
+        camera.status === 'online' && 'border-hairline',
+        camera.status === 'degraded' && 'border-warn/35',
+        camera.status === 'offline' && 'border-danger/35',
       )}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line bg-surface-2">
-            <Icon size={16} className="text-muted" aria-hidden />
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-2">
+            <Icon size={16} strokeWidth={1.75} className="text-muted" aria-hidden />
           </span>
           <div>
             <p className="text-sm font-medium text-text">{camera.name}</p>
-            <p className="mt-0.5 text-[11px] uppercase tracking-[0.14em] text-muted">
+            <p className="mt-0.5 text-[12px] font-medium text-muted">
               {KIND_LABELS[camera.kind]}
             </p>
           </div>
         </div>
         <Badge variant={status.variant}>{status.label}</Badge>
       </div>
-      <p className="mt-4 text-xs text-muted">
+      <p className="mt-4 text-[13px] text-muted">
         Last seen {relativeTime(camera.lastSeenIso)}
       </p>
     </div>

@@ -3,16 +3,19 @@ import type { ReconciliationFlag } from '@/lib/types';
 
 export type BadgeVariant = 'ok' | 'warn' | 'danger' | 'info' | 'muted';
 
+/* Semantics law: green ok/verified, orange warn/variance/calibrating,
+   red danger/tamper/offline, indigo AI. Dark-era variant names are kept
+   and mapped onto the new semantic bg/text pairs. */
 const VARIANT_CLASSES: Record<BadgeVariant, string> = {
-  ok: 'bg-teal/12 text-teal',
-  warn: 'bg-amber/12 text-amber',
-  danger: 'bg-red/12 text-red',
-  info: 'bg-purple/12 text-purple',
-  muted: 'bg-white/8 text-muted',
+  ok: 'bg-ok-bg text-ok',
+  warn: 'bg-warn-bg text-warn',
+  danger: 'bg-danger-bg text-danger',
+  info: 'bg-ai-bg text-ai',
+  muted: 'bg-black/[0.05] text-muted',
 };
 
 /**
- * Single source of truth for reconciliation-flag badges. Token law: amber =
+ * Single source of truth for reconciliation-flag badges. Token law: orange =
  * variance/review; red is reserved for tamper/offline/danger. The text label
  * ('Variance' vs 'Review'), not the color, differentiates the two flags.
  */
@@ -34,7 +37,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium tabular-nums',
+        'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-medium tabular-nums',
         VARIANT_CLASSES[variant],
         className,
       )}

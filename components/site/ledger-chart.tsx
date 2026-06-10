@@ -20,9 +20,10 @@ function fmt(v: number): number {
 }
 
 /**
- * Pure-SVG daily ledger chart: teal translucent band between verifiedMin and
- * verifiedMax, a teal mid line with dots, and an amber step-line overlay of
- * billed labour-days per day where reconciliations exist.
+ * Pure-SVG daily ledger chart on a white card: chart-green translucent band
+ * between verifiedMin and verifiedMax, a chart-green mid line with dots, and
+ * a dashed chart-orange step-line overlay of billed labour-days per day where
+ * reconciliations exist. Gridlines are near-invisible per the light system.
  */
 export function LedgerChart({
   days,
@@ -115,7 +116,7 @@ export function LedgerChart({
               x2={PAD_L + innerW}
               y1={fmt(y(v))}
               y2={fmt(y(v))}
-              stroke="var(--color-line)"
+              stroke="rgba(0,0,0,0.05)"
               strokeWidth={1}
             />
             <text
@@ -123,7 +124,7 @@ export function LedgerChart({
               y={fmt(y(v))}
               textAnchor="end"
               dominantBaseline="middle"
-              fontSize={12}
+              fontSize={11}
               fill="var(--color-muted)"
             >
               {v}
@@ -138,7 +139,7 @@ export function LedgerChart({
             x={fmt(x(i))}
             y={H - 8}
             textAnchor={i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}
-            fontSize={12}
+            fontSize={11}
             fill="var(--color-muted)"
           >
             {formatDateShort(days[i].date)}
@@ -146,13 +147,13 @@ export function LedgerChart({
         ))}
 
         {/* verified min–max band */}
-        <path d={bandPath} fill="var(--color-teal)" fillOpacity={0.16} />
+        <path d={bandPath} fill="var(--color-chart-green)" fillOpacity={0.16} />
 
         {/* mid line */}
         <polyline
           points={midPoints}
           fill="none"
-          stroke="var(--color-teal)"
+          stroke="var(--color-chart-green)"
           strokeWidth={1.5}
           strokeLinejoin="round"
         />
@@ -164,7 +165,7 @@ export function LedgerChart({
             cx={fmt(x(i))}
             cy={fmt(y(midOf(d)))}
             r={1.4}
-            fill="var(--color-teal)"
+            fill="var(--color-chart-green)"
             fillOpacity={0.55}
           />
         ))}
@@ -174,7 +175,7 @@ export function LedgerChart({
           <path
             d={billedPath.trim()}
             fill="none"
-            stroke="var(--color-amber)"
+            stroke="var(--color-chart-orange)"
             strokeWidth={1.5}
             strokeDasharray="5 3"
             strokeLinejoin="round"
@@ -195,8 +196,8 @@ export function LedgerChart({
           cx={fmt(x(n - 1))}
           cy={fmt(y(midOf(last)))}
           r={4}
-          fill="var(--color-teal)"
-          stroke="var(--color-bg)"
+          fill="var(--color-chart-green)"
+          stroke="var(--color-surface)"
           strokeWidth={1.5}
         />
         <text
@@ -205,7 +206,7 @@ export function LedgerChart({
           textAnchor="end"
           fontSize={13}
           fontWeight={600}
-          fill="var(--color-teal)"
+          fill="var(--color-ok)"
         >
           {formatRange(last.min, last.max)} today
         </text>
@@ -213,21 +214,21 @@ export function LedgerChart({
       </div>
 
       {/* legend */}
-      <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted">
+      <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-[12px] text-muted">
         <span className="inline-flex items-center gap-2">
           <span
-            className="h-2.5 w-5 rounded-sm bg-teal/20 ring-1 ring-inset ring-teal/40"
+            className="h-2.5 w-5 rounded-sm bg-chart-green/20 ring-1 ring-inset ring-chart-green/40"
             aria-hidden
           />
           Verified range (min–max)
         </span>
         <span className="inline-flex items-center gap-2">
-          <span className="h-0.5 w-5 rounded-full bg-teal" aria-hidden />
+          <span className="h-0.5 w-5 rounded-full bg-chart-green" aria-hidden />
           Mid estimate
         </span>
         <span className="inline-flex items-center gap-2">
           <span
-            className="w-5 border-t-2 border-dashed border-amber"
+            className="w-5 border-t-2 border-dashed border-chart-orange"
             aria-hidden
           />
           Billed per day (weekly bill ÷ 7)

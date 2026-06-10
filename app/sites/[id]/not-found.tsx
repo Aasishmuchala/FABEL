@@ -11,7 +11,7 @@ export default function SiteNotFound() {
       action={
         <Link
           href="/"
-          className="rounded-lg border border-line bg-surface-2 px-3.5 py-2 text-sm font-medium text-text transition-colors hover:border-white/20"
+          className="rounded-full bg-black/[0.05] px-4 py-2 text-sm font-medium text-text transition-colors hover:bg-black/[0.09]"
         >
           Back to portfolio
         </Link>

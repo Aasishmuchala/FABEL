@@ -14,11 +14,11 @@ export function HashChip({
     <span
       title={hash}
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-md border border-line bg-surface-2 px-2 py-0.5 font-mono text-[11px] tabular-nums text-muted',
+        'inline-flex items-center gap-1.5 rounded-md border border-hairline bg-surface-2 px-2 py-0.5 font-mono text-[11px] tabular-nums text-muted',
         className,
       )}
     >
-      <Link2 size={12} className="shrink-0 text-muted" aria-hidden />
+      <Link2 size={12} strokeWidth={1.75} className="shrink-0 text-muted" aria-hidden />
       {display}
     </span>
   );

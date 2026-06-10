@@ -8,6 +8,7 @@ import {
   getPortfolioSummary,
   getReconciliations,
   getSites,
+  getStages,
   mondayOf,
 } from '@/lib/store';
 import { formatInr, formatRange } from '@/lib/format';
@@ -35,10 +36,10 @@ function ViewAllLink({ href }: { href: string }) {
   return (
     <Link
       href={href}
-      className="inline-flex items-center gap-1 text-xs font-medium text-muted transition-colors hover:text-text"
+      className="inline-flex items-center gap-1 text-[13px] font-medium text-accent transition-opacity hover:opacity-80"
     >
       View all
-      <ArrowRight size={13} aria-hidden />
+      <ArrowRight size={13} strokeWidth={1.75} aria-hidden />
     </Link>
   );
 }
@@ -80,6 +81,8 @@ export default function PortfolioPage() {
         .filter((r) => r.weekStart >= cutoffStr)
         .reduce((sum, r) => sum + r.savingsInr, 0),
       openAlerts: getAlerts(site.id).filter((a) => !a.resolvedIso).length,
+      stageName: getStages(site.id).find((s) => s.status === 'in-progress')
+        ?.name,
     };
   });
 
@@ -90,14 +93,14 @@ export default function PortfolioPage() {
   const recentAlerts = getAlerts().slice(0, 5);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       {/* Page header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.14em] text-muted">
+          <p className="text-[13px] font-medium text-muted">
             All sites · live ledger
           </p>
-          <h1 className="mt-1 font-display text-2xl font-bold text-text">
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-text">
             Portfolio
           </h1>
         </div>

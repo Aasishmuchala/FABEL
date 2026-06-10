@@ -56,9 +56,9 @@ export function BillForm({
 
   const inputClass = (invalid: boolean) =>
     cn(
-      'w-full rounded-lg border bg-surface-2 px-3 py-2 text-sm tabular-nums text-text outline-none transition-colors',
-      'placeholder:text-muted/60 focus:border-teal/50',
-      invalid ? 'border-red/60' : 'border-line',
+      'w-full rounded-xl border bg-surface px-3 py-2 text-sm tabular-nums text-text outline-none transition-colors',
+      'placeholder:text-muted/60 focus:border-accent',
+      invalid ? 'border-danger/50' : 'border-hairline',
     );
 
   return (
@@ -67,7 +67,7 @@ export function BillForm({
         <div>
           <label
             htmlFor="bill-week"
-            className="text-[11px] uppercase tracking-[0.14em] text-muted"
+            className="text-[13px] font-medium text-muted"
           >
             Week starting
           </label>
@@ -76,13 +76,13 @@ export function BillForm({
             type="text"
             readOnly
             value={`${formatDateShort(weekStart)} (${weekStart})`}
-            className="mt-1.5 w-full cursor-default rounded-lg border border-line bg-surface px-3 py-2 text-sm tabular-nums text-muted outline-none"
+            className="mt-1.5 w-full cursor-default rounded-xl border border-hairline bg-surface-2 px-3 py-2 text-sm tabular-nums text-muted outline-none"
           />
         </div>
         <div>
           <label
             htmlFor="bill-days"
-            className="text-[11px] uppercase tracking-[0.14em] text-muted"
+            className="text-[13px] font-medium text-muted"
           >
             Billed labour-days
           </label>
@@ -94,16 +94,19 @@ export function BillForm({
             value={days}
             onChange={(e) => setDays(e.target.value)}
             aria-invalid={Boolean(errors.days)}
+            aria-describedby={errors.days ? 'bill-days-error' : undefined}
             className={cn('mt-1.5', inputClass(Boolean(errors.days)))}
           />
           {errors.days ? (
-            <p className="mt-1 text-xs text-red">{errors.days}</p>
+            <p id="bill-days-error" className="mt-1 text-xs text-danger">
+              {errors.days}
+            </p>
           ) : null}
         </div>
         <div>
           <label
             htmlFor="bill-amount"
-            className="text-[11px] uppercase tracking-[0.14em] text-muted"
+            className="text-[13px] font-medium text-muted"
           >
             Bill amount (₹)
           </label>
@@ -115,26 +118,33 @@ export function BillForm({
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             aria-invalid={Boolean(errors.amount)}
+            aria-describedby={errors.amount ? 'bill-amount-error' : undefined}
             className={cn('mt-1.5', inputClass(Boolean(errors.amount)))}
           />
           {errors.amount ? (
-            <p className="mt-1 text-xs text-red">{errors.amount}</p>
+            <p id="bill-amount-error" className="mt-1 text-xs text-danger">
+              {errors.amount}
+            </p>
           ) : null}
         </div>
       </div>
 
-      {errors.form ? <p className="text-xs text-red">{errors.form}</p> : null}
+      {errors.form ? (
+        <p role="alert" className="text-xs text-danger">
+          {errors.form}
+        </p>
+      ) : null}
 
       <div className="flex items-center gap-3">
         <button
           type="submit"
           disabled={isPending}
-          className="inline-flex items-center gap-2 rounded-lg bg-teal px-4 py-2 text-sm font-semibold text-bg transition-opacity hover:opacity-90 disabled:opacity-60"
+          className="inline-flex h-10 items-center gap-2 rounded-full bg-accent px-5 text-[14px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
         >
-          <ScanLine size={16} aria-hidden />
+          <ScanLine size={16} strokeWidth={1.75} aria-hidden />
           {isPending ? 'Reconciling…' : 'Reconcile against ledger'}
         </button>
-        <p className="text-xs text-muted">
+        <p className="text-[13px] text-muted">
           Compares billed days with the verified range for this week.
         </p>
       </div>

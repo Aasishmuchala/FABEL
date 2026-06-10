@@ -1,24 +1,32 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+  addDays,
   computeLedgerHash,
   computeVariance,
   generateSeed,
+  todayStr,
   DAILY_RATE_INR,
+  SEED_VERSION,
 } from './seed';
 import type {
   Bill,
+  BoqItem,
   Camera,
   DailyCount,
   Db,
   EvidenceClip,
   LedgerEntry,
+  MaterialOrder,
+  OrderLine,
   Reconciliation,
   Site,
   SiteAlert,
+  Stage,
+  Vendor,
 } from './types';
 
-export { DAILY_RATE_INR, computeVariance, mondayOf } from './seed';
+export { DAILY_RATE_INR, SEED_VERSION, computeVariance, mondayOf } from './seed';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
@@ -34,7 +42,13 @@ function readDb(): Db {
     return reseed();
   }
   try {
-    return JSON.parse(fs.readFileSync(DB_FILE, 'utf8')) as Db;
+    const parsed = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')) as Db;
+    // Shape changed since this file was written (or it predates versioning):
+    // regenerate rather than serving a db missing whole collections.
+    if (parsed.seedVersion !== SEED_VERSION) {
+      return reseed();
+    }
+    return parsed;
   } catch {
     // A truncated or corrupt db.json (e.g. process killed mid-write) must not
     // 500 every request forever — fall back to a fresh seed.
@@ -288,4 +302,152 @@ export function resolveAlert(alertId: string, note?: string): SiteAlert | undefi
   }
   writeDb(db);
   return alert;
+}
+
+/* ------------------------------------------- procurement (quality-gated) */
+
+/** Stages for a site in build order (1 → 8). */
+export function getStages(siteId: string): Stage[] {
+  return readDb()
+    .stages.filter((s) => s.siteId === siteId)
+    .sort((a, b) => a.order - b.order);
+}
+
+/** BOQ items for a site, optionally narrowed to one stage; in stage/BOQ order. */
+export function getBoq(siteId: string, stageId?: string): BoqItem[] {
+  return readDb().boqItems.filter(
+    (b) => b.siteId === siteId && (!stageId || b.stageId === stageId),
+  );
+}
+
+/** Vendors (highest rated first), optionally only those carrying a category. */
+export function getVendors(category?: string): Vendor[] {
+  return readDb()
+    .vendors.filter(
+      (v) => !category || (v.categories as string[]).includes(category),
+    )
+    .sort((a, b) => b.rating - a.rating);
+}
+
+/** Material orders, newest placed first. Omit siteId for all sites. */
+export function getOrders(siteId?: string): MaterialOrder[] {
+  return readDb()
+    .orders.filter((o) => !siteId || o.siteId === siteId)
+    .sort(
+      (a, b) => b.placedOn.localeCompare(a.placedOn) || b.id.localeCompare(a.id),
+    );
+}
+
+/** Total quantity already ordered against a BOQ item (placed + delivered). */
+export function getOrderedQty(boqItemId: string): number {
+  let sum = 0;
+  for (const order of readDb().orders) {
+    for (const line of order.lines) {
+      if (line.boqItemId === boqItemId) sum += line.qty;
+    }
+  }
+  return sum;
+}
+
+export interface PlaceOrderInput {
+  siteId: string;
+  stageId: string;
+  vendorId: string;
+  lines: Array<{ boqItemId: string; qty: number }>;
+}
+
+export type PlaceOrderResult =
+  | { ok: true; order: MaterialOrder }
+  | { ok: false; error: string };
+
+/**
+ * Places a material order against the BOQ of an in-progress stage.
+ *
+ * Quality gate: ordering on a 'locked' stage is refused (previous stage not
+ * yet verified) and 'verified' stages are closed for materials. Quantities
+ * are capped at the BOQ remainder (BOQ qty − already ordered). Line rates are
+ * the BOQ rate × vendor priceFactor, rounded to whole rupees; 18% GST applies.
+ */
+export function placeOrder(input: PlaceOrderInput): PlaceOrderResult {
+  const db = readDb();
+
+  const site = db.sites.find((s) => s.id === input.siteId);
+  if (!site) return { ok: false, error: 'Site not found' };
+
+  const stage = db.stages.find(
+    (s) => s.id === input.stageId && s.siteId === input.siteId,
+  );
+  if (!stage) return { ok: false, error: 'Stage not found for this site' };
+
+  const vendor = db.vendors.find((v) => v.id === input.vendorId);
+  if (!vendor) return { ok: false, error: 'Vendor not found' };
+
+  if (stage.status === 'locked') {
+    return { ok: false, error: 'Quality gate: previous stage not yet verified' };
+  }
+  if (stage.status === 'verified') {
+    return { ok: false, error: 'Stage already verified — materials closed' };
+  }
+
+  if (input.lines.length === 0) {
+    return { ok: false, error: 'Order needs at least one line' };
+  }
+
+  // Already-ordered quantity per BOQ item; also accumulates the lines of THIS
+  // order so duplicate boqItemIds in the input cannot bypass the remainder cap.
+  const ordered = new Map<string, number>();
+  for (const order of db.orders) {
+    for (const line of order.lines) {
+      ordered.set(line.boqItemId, (ordered.get(line.boqItemId) ?? 0) + line.qty);
+    }
+  }
+
+  const lines: OrderLine[] = [];
+  for (const req of input.lines) {
+    const item = db.boqItems.find((b) => b.id === req.boqItemId);
+    if (!item || item.stageId !== stage.id) {
+      return { ok: false, error: 'BOQ item does not belong to this stage' };
+    }
+    if (!Number.isFinite(req.qty) || req.qty <= 0) {
+      return { ok: false, error: `Quantity must be above zero for ${item.description}` };
+    }
+    const remaining = item.qty - (ordered.get(item.id) ?? 0);
+    if (req.qty > remaining) {
+      return {
+        ok: false,
+        error: `Only ${Math.max(0, remaining)} ${item.unit} of ${item.description} left in BOQ`,
+      };
+    }
+    ordered.set(item.id, (ordered.get(item.id) ?? 0) + req.qty);
+
+    const ratePerUnit = Math.round(item.ratePerUnit * vendor.priceFactor);
+    lines.push({
+      boqItemId: item.id,
+      description: item.description,
+      qty: req.qty,
+      unit: item.unit,
+      ratePerUnit,
+      lineTotal: Math.round(req.qty * ratePerUnit),
+    });
+  }
+
+  const subtotalInr = lines.reduce((s, l) => s + l.lineTotal, 0);
+  const today = todayStr();
+  const order: MaterialOrder = {
+    id: `ord-${Date.now().toString(36)}-${db.orders.length + 1}`,
+    siteId: input.siteId,
+    stageId: input.stageId,
+    vendorId: input.vendorId,
+    lines,
+    subtotalInr,
+    gstPct: 18,
+    totalInr: Math.round(subtotalInr * 1.18),
+    status: 'placed',
+    placedOn: today,
+    etaDate: addDays(today, vendor.deliveryDays),
+  };
+
+  db.orders.push(order);
+  writeDb(db);
+  return { ok: true, order };
 }

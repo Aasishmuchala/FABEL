@@ -75,31 +75,63 @@ export function EvidenceDrawer({
 }) {
   const [open, setOpen] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key === 'Escape') {
+        setOpen(false);
+        return;
+      }
+      // Trap Tab inside the drawer: the page behind the overlay stays in the
+      // DOM (scroll-locked but focusable), so cycle first/last instead of
+      // letting focus walk out into invisible content.
+      if (e.key !== 'Tab') return;
+      const root = drawerRef.current;
+      if (!root) return;
+      const focusables = root.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey) {
+        if (active === first || !root.contains(active)) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else if (active === last || !root.contains(active)) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener('keydown', onKey);
     // Lock the page behind the modal drawer and move focus into it.
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    const trigger = triggerRef.current;
     closeButtonRef.current?.focus();
     return () => {
       window.removeEventListener('keydown', onKey);
       document.body.style.overflow = prevOverflow;
+      // Hand focus back to the Evidence trigger on every close path (Escape,
+      // backdrop, X) so keyboard/SR users aren't stranded on <body>.
+      trigger?.focus();
     };
   }, [open]);
 
   return (
     <>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-muted transition-colors hover:border-white/15 hover:text-text"
+        className="inline-flex items-center gap-1.5 rounded-full bg-black/[0.05] px-3 py-1.5 text-[12px] font-medium text-text transition-colors hover:bg-black/[0.09]"
       >
-        <FileSearch size={14} aria-hidden />
+        <FileSearch size={14} strokeWidth={1.75} aria-hidden />
         Evidence
       </button>
 
@@ -109,32 +141,33 @@ export function EvidenceDrawer({
             type="button"
             aria-label="Close evidence drawer"
             onClick={() => setOpen(false)}
-            className="absolute inset-0 bg-black/60"
+            className="absolute inset-0 bg-black/30"
           />
           <aside
+            ref={drawerRef}
             role="dialog"
             aria-modal="true"
             aria-label={`Evidence pack — week of ${formatDateShort(weekStart)}`}
-            className="absolute inset-y-0 right-0 flex w-full max-w-md flex-col overflow-y-auto border-l border-line bg-surface"
+            className="absolute inset-y-0 right-0 flex w-full max-w-md flex-col overflow-y-auto border-l border-hairline bg-surface shadow-[0_0_40px_rgba(0,0,0,0.12)]"
           >
-            <div className="sticky top-0 flex items-start justify-between gap-3 border-b border-line bg-surface px-5 py-4">
+            <div className="sticky top-0 flex items-start justify-between gap-3 border-b border-hairline bg-surface px-5 py-4">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.14em] text-muted">
+                <p className="text-[13px] font-medium text-muted">
                   Evidence pack
                 </p>
-                <h3 className="mt-1 font-display text-lg font-semibold text-text">
+                <h3 className="mt-1 text-lg font-semibold tracking-tight text-text">
                   Week of {formatDateShort(weekStart)}
                 </h3>
-                <p className="mt-0.5 text-xs text-muted">{siteName}</p>
+                <p className="mt-0.5 text-[13px] text-muted">{siteName}</p>
               </div>
               <button
                 ref={closeButtonRef}
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label="Close"
-                className="rounded-lg border border-line bg-surface-2 p-1.5 text-muted transition-colors hover:border-white/15 hover:text-text"
+                className="rounded-full bg-black/[0.05] p-1.5 text-muted transition-colors hover:bg-black/[0.09] hover:text-text"
               >
-                <X size={16} aria-hidden />
+                <X size={16} strokeWidth={1.75} aria-hidden />
               </button>
             </div>
 
@@ -142,21 +175,21 @@ export function EvidenceDrawer({
               {/* Reconciliation summary */}
               <section>
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted">
+                  <p className="text-[13px] font-medium text-muted">
                     Reconciliation
                   </p>
                   <Badge variant={FLAG_BADGE_VARIANT[flag]}>
                     {formatVariancePct(variancePct)} · {FLAG_LABEL[flag]}
                   </Badge>
                 </div>
-                <div className="mt-3 rounded-xl border border-line bg-surface-2 p-4">
+                <div className="mt-3 rounded-xl border border-hairline bg-surface-2 p-4">
                   <RangeBar
                     min={verifiedMin}
                     max={verifiedMax}
                     billed={billedLabourDays}
                   />
                   {savingsInr > 0 ? (
-                    <p className="mt-2 text-xs text-teal">
+                    <p className="mt-2 text-xs font-medium text-ok">
                       {formatInr(savingsInr)} detected savings this week
                     </p>
                   ) : (
@@ -169,10 +202,10 @@ export function EvidenceDrawer({
 
               {/* Daily verified ranges */}
               <section>
-                <p className="text-[11px] uppercase tracking-[0.14em] text-muted">
+                <p className="text-[13px] font-medium text-muted">
                   Daily verified ranges
                 </p>
-                <ul className="mt-2 divide-y divide-line rounded-xl border border-line bg-surface-2">
+                <ul className="mt-2 divide-y divide-line rounded-xl border border-hairline bg-surface-2">
                   {days.length === 0 ? (
                     <li className="px-3 py-3 text-xs text-muted">
                       No verified counts recorded for this week.
@@ -192,7 +225,7 @@ export function EvidenceDrawer({
                           showLabels={false}
                           className="min-w-0 flex-1"
                         />
-                        <span className="w-12 shrink-0 text-right text-xs font-medium tabular-nums text-teal">
+                        <span className="w-12 shrink-0 text-right text-xs font-medium tabular-nums text-ok">
                           {formatRange(day.verifiedMin, day.verifiedMax)}
                         </span>
                         {day.confidence === 'calibrating' ? (
@@ -206,11 +239,11 @@ export function EvidenceDrawer({
 
               {/* Evidence clips */}
               <section>
-                <p className="text-[11px] uppercase tracking-[0.14em] text-muted">
+                <p className="text-[13px] font-medium text-muted">
                   Evidence clips
                 </p>
                 {clips.length === 0 ? (
-                  <p className="mt-2 rounded-xl border border-dashed border-line px-3 py-4 text-xs text-muted">
+                  <p className="mt-2 rounded-xl border border-dashed border-hairline px-3 py-4 text-xs text-muted">
                     No clips pinned to this week.
                   </p>
                 ) : (
@@ -218,11 +251,12 @@ export function EvidenceDrawer({
                     {clips.map((clip) => (
                       <li
                         key={clip.id}
-                        className="flex items-start gap-3 rounded-xl border border-line bg-surface-2 px-3 py-2.5"
+                        className="flex items-start gap-3 rounded-xl border border-hairline bg-surface-2 px-3 py-2.5"
                       >
                         <Film
                           size={16}
-                          className="mt-0.5 shrink-0 text-purple"
+                          strokeWidth={1.75}
+                          className="mt-0.5 shrink-0 text-ai"
                           aria-hidden
                         />
                         <div className="min-w-0">
@@ -240,20 +274,20 @@ export function EvidenceDrawer({
 
               {/* Ledger entries */}
               <section>
-                <p className="text-[11px] uppercase tracking-[0.14em] text-muted">
+                <p className="text-[13px] font-medium text-muted">
                   Ledger entries
                 </p>
                 <div
-                  className={`mt-2 flex items-center gap-2 rounded-lg px-3 py-2 text-xs ${
+                  className={`mt-2 flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium ${
                     chainVerified
-                      ? 'bg-teal/12 text-teal'
-                      : 'bg-red/12 text-red'
+                      ? 'bg-ok-bg text-ok'
+                      : 'bg-danger-bg text-danger'
                   }`}
                 >
                   {chainVerified ? (
-                    <ShieldCheck size={16} aria-hidden />
+                    <ShieldCheck size={16} strokeWidth={1.75} aria-hidden />
                   ) : (
-                    <ShieldAlert size={16} aria-hidden />
+                    <ShieldAlert size={16} strokeWidth={1.75} aria-hidden />
                   )}
                   {chainVerified
                     ? 'Chain verified — every hash recomputed from genesis matches.'
@@ -281,13 +315,13 @@ export function EvidenceDrawer({
               </section>
             </div>
 
-            <div className="sticky bottom-0 border-t border-line bg-surface px-5 py-4">
+            <div className="sticky bottom-0 border-t border-hairline bg-surface px-5 py-4">
               <a
                 href={`/api/evidence/${billId}`}
                 download
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-teal/40 bg-teal/12 px-4 py-2 text-sm font-semibold text-teal transition-colors hover:bg-teal/20"
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-accent px-5 text-[14px] font-medium text-white transition-opacity hover:opacity-90"
               >
-                <Download size={16} aria-hidden />
+                <Download size={16} strokeWidth={1.75} aria-hidden />
                 Download evidence pack (JSON)
               </a>
             </div>

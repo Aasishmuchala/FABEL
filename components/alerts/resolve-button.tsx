@@ -18,10 +18,8 @@ export function ResolveButton({ alertId }: { alertId: string }) {
         })
       }
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-xs font-medium text-text transition-colors',
-        pending
-          ? 'cursor-default opacity-60'
-          : 'hover:border-teal/40 hover:text-teal',
+        'inline-flex items-center gap-1.5 rounded-full bg-black/[0.05] px-3 py-1.5 text-[12px] font-medium text-text transition-colors',
+        pending ? 'cursor-default opacity-60' : 'hover:bg-black/[0.09]',
       )}
     >
       <Check size={14} aria-hidden />

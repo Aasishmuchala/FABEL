@@ -10,26 +10,26 @@ function formatDuration(sec: number): string {
 
 /**
  * Evidence clip list — camera, time, label, duration. Clips are AI-bookmarked
- * moments, so they carry the purple AI/insight color (matching the evidence
+ * moments, so they carry the indigo AI/insight color (matching the evidence
  * drawer). Playback affordance arrives with real clip storage.
  */
 export function ClipList({ clips }: { clips: EvidenceClip[] }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-line bg-surface">
+    <div className="overflow-hidden rounded-[18px] border border-hairline bg-surface shadow-card">
       <ul className="divide-y divide-line">
         {clips.map((clip) => (
           <li
             key={clip.id}
-            className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-surface-2/40"
+            className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-black/[0.02]"
           >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line bg-surface-2">
-              <Film size={14} className="text-purple" aria-hidden />
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-ai-bg">
+              <Film size={14} strokeWidth={1.75} className="text-ai" aria-hidden />
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-text">
                 {clip.label}
               </p>
-              <p className="mt-0.5 text-xs text-muted">
+              <p className="mt-0.5 text-[13px] text-muted">
                 {clip.cameraName} · {formatDateShort(clip.date)} · {clip.time}
               </p>
             </div>

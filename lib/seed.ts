@@ -1,19 +1,30 @@
 import { createHash } from 'node:crypto';
 import type {
   Bill,
+  BoqItem,
   Camera,
   DailyCount,
   Db,
   EvidenceClip,
   LedgerEntry,
+  MaterialOrder,
+  OrderLine,
   Reconciliation,
   ReconciliationFlag,
   Site,
   SiteAlert,
+  Stage,
+  Vendor,
 } from './types';
 
 /** Blended daily labour rate (₹/labour-day) used across bills and savings. */
 export const DAILY_RATE_INR = 650;
+
+/**
+ * Bump whenever the seed/db shape changes — the store bootstrap regenerates
+ * any data/db.json whose seedVersion does not match.
+ */
+export const SEED_VERSION = 2;
 
 /* ---------------------------------------------------------------- PRNG */
 
@@ -54,11 +65,17 @@ function isoAt(date: string, time: string): string {
   return `${date}T${time}:00`;
 }
 
-function addDays(date: string, n: number): string {
+/** date + n days, both as local YYYY-MM-DD strings. */
+export function addDays(date: string, n: number): string {
   const [y, m, d] = date.split('-').map(Number);
   const dt = new Date(y, m - 1, d, 12);
   dt.setDate(dt.getDate() + n);
   return toDateStr(dt);
+}
+
+/** Today as a local YYYY-MM-DD string. */
+export function todayStr(): string {
+  return daysAgo(0);
 }
 
 function dayOfWeek(date: string): number {
@@ -446,5 +463,322 @@ export function generateSeed(): Db {
     { id: 'clip-lake-3', siteId: SITE_3, date: daysAgo(1), cameraName: 'Gate cam 2', time: '17:46', label: 'Exit flow — 20 exits in 9 min', durationSec: 24 },
   ];
 
-  return { sites, cameras, dailyCounts, bills, reconciliations, alerts, ledger, clips };
+  /* ------------------------------------------------ stages (quality gates) */
+
+  const STAGE_NAMES = [
+    'Footing',
+    'Plinth beam',
+    'Ground-floor slab',
+    'First-floor slab',
+    'Brickwork GF',
+    'Brickwork FF',
+    'Internal plastering',
+    'Flooring & tiles',
+  ];
+
+  const stageIdOf = (siteId: string, order: number) => `${siteId}-stage-${order}`;
+
+  const stages: Stage[] = [];
+  const makeStages = (
+    siteId: string,
+    inProgressOrder: number,
+    verifiedDaysAgo: number[],
+    gateNotes: Record<number, string> = {},
+  ) => {
+    STAGE_NAMES.forEach((name, idx) => {
+      const order = idx + 1;
+      const status: Stage['status'] =
+        order < inProgressOrder
+          ? 'verified'
+          : order === inProgressOrder
+            ? 'in-progress'
+            : 'locked';
+      stages.push({
+        id: stageIdOf(siteId, order),
+        siteId,
+        name,
+        order,
+        status,
+        ...(status === 'verified' ? { verifiedOn: daysAgo(verifiedDaysAgo[idx]) } : {}),
+        ...(gateNotes[order] ? { gateNote: gateNotes[order] } : {}),
+      });
+    });
+  };
+
+  // Sunrise Heights: 1–4 verified across the past ~60 days, 5 in progress.
+  makeStages(SITE_1, 5, [58, 43, 26, 9], {
+    4: 'Slab cube test passed — 28-day strength report on file',
+  });
+  // GVR Meadows: 1–3 verified, 4 in progress; 5 locked behind the slab gate.
+  makeStages(SITE_2, 4, [55, 38, 20], {
+    5: 'Blocked — first-floor slab gate pending verification',
+  });
+  // Lakeview Residency: 1 verified, 2 in progress.
+  makeStages(SITE_3, 2, [6]);
+
+  /* ------------------------------------------------------------------ BOQ */
+
+  interface BoqTemplate {
+    description: string;
+    category: BoqItem['category'];
+    unit: string;
+    rate: number;
+    qty: number;
+  }
+
+  // Index 0..7 ↔ stage order 1..8. Rates are realistic Indian market rates.
+  const BOQ_TEMPLATES: BoqTemplate[][] = [
+    [
+      { description: 'OPC 53-grade cement', category: 'cement', unit: 'bag', rate: 380, qty: 220 },
+      { description: 'TMT steel Fe-550, 12 mm', category: 'steel', unit: 'kg', rate: 62, qty: 2800 },
+      { description: 'River sand', category: 'sand', unit: 'cft', rate: 45, qty: 900 },
+      { description: 'Coarse aggregate 20 mm', category: 'aggregate', unit: 'cft', rate: 38, qty: 1200 },
+      { description: 'Shuttering plywood + props', category: 'shuttering', unit: 'sqft', rate: 55, qty: 600 },
+    ],
+    [
+      { description: 'OPC 53-grade cement', category: 'cement', unit: 'bag', rate: 380, qty: 140 },
+      { description: 'TMT steel Fe-550, 10 mm', category: 'steel', unit: 'kg', rate: 62, qty: 1900 },
+      { description: 'River sand', category: 'sand', unit: 'cft', rate: 45, qty: 520 },
+      { description: 'Coarse aggregate 20 mm', category: 'aggregate', unit: 'cft', rate: 38, qty: 700 },
+      { description: 'Beam shuttering + props', category: 'shuttering', unit: 'sqft', rate: 55, qty: 480 },
+    ],
+    [
+      { description: 'OPC 53-grade cement', category: 'cement', unit: 'bag', rate: 380, qty: 310 },
+      { description: 'TMT steel Fe-550, 8/10/12 mm', category: 'steel', unit: 'kg', rate: 62, qty: 3600 },
+      { description: 'River sand', category: 'sand', unit: 'cft', rate: 45, qty: 760 },
+      { description: 'Coarse aggregate 20 mm', category: 'aggregate', unit: 'cft', rate: 38, qty: 1050 },
+      { description: 'Slab shuttering plates + jacks', category: 'shuttering', unit: 'sqft', rate: 55, qty: 1450 },
+      { description: 'PVC conduit 25 mm, in-slab', category: 'electrical', unit: 'm', rate: 48, qty: 350 },
+    ],
+    [
+      { description: 'OPC 53-grade cement', category: 'cement', unit: 'bag', rate: 380, qty: 290 },
+      { description: 'TMT steel Fe-550, 8/10/12 mm', category: 'steel', unit: 'kg', rate: 62, qty: 3400 },
+      { description: 'River sand', category: 'sand', unit: 'cft', rate: 45, qty: 720 },
+      { description: 'Coarse aggregate 20 mm', category: 'aggregate', unit: 'cft', rate: 38, qty: 980 },
+      { description: 'Slab shuttering plates + jacks', category: 'shuttering', unit: 'sqft', rate: 55, qty: 1450 },
+      { description: 'PVC conduit 25 mm, in-slab', category: 'electrical', unit: 'm', rate: 48, qty: 330 },
+    ],
+    [
+      { description: 'Red clay bricks, 9 in', category: 'bricks', unit: 'no', rate: 8, qty: 18000 },
+      { description: 'OPC 53-grade cement (mortar)', category: 'cement', unit: 'bag', rate: 380, qty: 95 },
+      { description: 'River sand (mortar)', category: 'sand', unit: 'cft', rate: 45, qty: 620 },
+      { description: 'CPVC sleeves & wall pipes', category: 'plumbing', unit: 'm', rate: 140, qty: 60 },
+    ],
+    [
+      { description: 'Red clay bricks, 9 in', category: 'bricks', unit: 'no', rate: 8, qty: 16500 },
+      { description: 'OPC 53-grade cement (mortar)', category: 'cement', unit: 'bag', rate: 380, qty: 85 },
+      { description: 'River sand (mortar)', category: 'sand', unit: 'cft', rate: 45, qty: 560 },
+      { description: 'Modular switch boxes + conduit', category: 'electrical', unit: 'no', rate: 85, qty: 120 },
+    ],
+    [
+      { description: 'OPC 53-grade cement (plaster)', category: 'cement', unit: 'bag', rate: 380, qty: 180 },
+      { description: 'Plaster sand, fine', category: 'sand', unit: 'cft', rate: 45, qty: 1400 },
+      { description: 'Wiring conduit in chase', category: 'electrical', unit: 'm', rate: 48, qty: 280 },
+      { description: 'Concealed CPVC lines', category: 'plumbing', unit: 'm', rate: 140, qty: 180 },
+    ],
+    [
+      { description: 'Vitrified tiles 600×600', category: 'tiles', unit: 'sqft', rate: 65, qty: 2400 },
+      { description: 'OPC 53-grade cement (bedding)', category: 'cement', unit: 'bag', rate: 380, qty: 70 },
+      { description: 'Screed sand', category: 'sand', unit: 'cft', rate: 45, qty: 380 },
+      { description: 'Interior emulsion paint', category: 'paint', unit: 'litre', rate: 310, qty: 220 },
+    ],
+  ];
+
+  // Built-up-area scale per site (GVR is the largest block, Lakeview smallest).
+  const SITE_SCALE: Record<string, number> = {
+    [SITE_1]: 1.0,
+    [SITE_2]: 1.2,
+    [SITE_3]: 0.75,
+  };
+
+  const roundQty = (q: number): number => {
+    if (q >= 10000) return Math.round(q / 500) * 500;
+    if (q >= 1000) return Math.round(q / 50) * 50;
+    if (q >= 100) return Math.round(q / 10) * 10;
+    return Math.max(5, Math.round(q / 5) * 5);
+  };
+
+  const boqItems: BoqItem[] = [];
+  for (const site of sites) {
+    const scale = SITE_SCALE[site.id];
+    BOQ_TEMPLATES.forEach((templates, stageIdx) => {
+      const sid = stageIdOf(site.id, stageIdx + 1);
+      templates.forEach((t, itemIdx) => {
+        boqItems.push({
+          id: `${sid}-boq-${itemIdx + 1}`,
+          siteId: site.id,
+          stageId: sid,
+          description: t.description,
+          category: t.category,
+          qty: roundQty(t.qty * scale * rand(0.94, 1.08)),
+          unit: t.unit,
+          ratePerUnit: t.rate,
+        });
+      });
+    });
+  }
+
+  /* -------------------------------------------------------------- vendors */
+
+  const ALL_CATEGORIES: Vendor['categories'] = [
+    'cement', 'steel', 'bricks', 'sand', 'aggregate',
+    'shuttering', 'electrical', 'plumbing', 'tiles', 'paint',
+  ];
+
+  const vendors: Vendor[] = [
+    {
+      id: 'sri-balaji-traders',
+      name: 'Sri Balaji Traders',
+      city: 'Hyderabad',
+      categories: ['cement', 'sand', 'aggregate'],
+      rating: 4.6,
+      deliveryDays: 1,
+      priceFactor: 1.0,
+      gstin: '36AABCS4821F1Z5',
+      paymentTerms: '50% advance, balance on delivery',
+    },
+    {
+      id: 'deccan-cement-agencies',
+      name: 'Deccan Cement Agencies',
+      city: 'Hyderabad',
+      categories: ['cement'],
+      rating: 4.4,
+      deliveryDays: 2,
+      priceFactor: 0.96,
+      gstin: '36AADCD7390G1Z3',
+      paymentTerms: '100% advance',
+    },
+    {
+      id: 'knr-steel-hardware',
+      name: 'KNR Steel & Hardware',
+      city: 'Hyderabad',
+      categories: ['steel', 'shuttering'],
+      rating: 4.7,
+      deliveryDays: 2,
+      priceFactor: 1.02,
+      gstin: '36AAFCK1265H1Z8',
+      paymentTerms: '15-day credit',
+    },
+    {
+      id: 'metro-buildmart',
+      name: 'Metro BuildMart',
+      city: 'Hyderabad',
+      categories: ALL_CATEGORIES,
+      rating: 4.2,
+      deliveryDays: 3,
+      priceFactor: 0.94,
+      gstin: '36AAGCM5847J1Z2',
+      paymentTerms: '30% advance, balance 15-day credit',
+    },
+    {
+      id: 'warangal-building-supplies',
+      name: 'Warangal Building Supplies',
+      city: 'Warangal',
+      categories: ALL_CATEGORIES,
+      rating: 4.3,
+      deliveryDays: 1,
+      priceFactor: 1.04,
+      gstin: '36AAHCW9034K1Z6',
+      paymentTerms: 'Cash on delivery',
+    },
+  ];
+
+  /* --------------------------------------------------------------- orders */
+
+  const vendorById = new Map(vendors.map((v) => [v.id, v]));
+  const orders: MaterialOrder[] = [];
+  let orderSeq = 0;
+
+  // picks: BOQ template index within the stage → fraction of BOQ qty ordered.
+  const seedOrder = (
+    siteId: string,
+    stageOrder: number,
+    vendorId: string,
+    picks: Array<{ idx: number; frac: number }>,
+    placedDaysAgo: number,
+  ) => {
+    const sid = stageIdOf(siteId, stageOrder);
+    const vendor = vendorById.get(vendorId);
+    if (!vendor) return;
+    const stageItems = boqItems.filter((b) => b.stageId === sid);
+    const lines: OrderLine[] = [];
+    for (const pick of picks) {
+      const item = stageItems[pick.idx];
+      if (!item) continue;
+      const qty = Math.max(1, Math.round(item.qty * pick.frac));
+      const ratePerUnit = Math.round(item.ratePerUnit * vendor.priceFactor);
+      lines.push({
+        boqItemId: item.id,
+        description: item.description,
+        qty,
+        unit: item.unit,
+        ratePerUnit,
+        lineTotal: qty * ratePerUnit,
+      });
+    }
+    const subtotalInr = lines.reduce((s, l) => s + l.lineTotal, 0);
+    const placedOn = daysAgo(placedDaysAgo);
+    const etaDate = addDays(placedOn, vendor.deliveryDays);
+    orderSeq += 1;
+    orders.push({
+      id: `ord-${String(orderSeq).padStart(3, '0')}`,
+      siteId,
+      stageId: sid,
+      vendorId,
+      lines,
+      subtotalInr,
+      gstPct: 18,
+      totalInr: Math.round(subtotalInr * 1.18),
+      status: etaDate < today ? 'delivered' : 'placed',
+      placedOn,
+      etaDate,
+    });
+  };
+
+  // Sunrise Heights — delivered history on verified stages…
+  seedOrder(SITE_1, 1, 'sri-balaji-traders', [
+    { idx: 0, frac: 1 }, { idx: 2, frac: 1 }, { idx: 3, frac: 1 },
+  ], 70);
+  seedOrder(SITE_1, 3, 'knr-steel-hardware', [
+    { idx: 1, frac: 1 }, { idx: 4, frac: 1 },
+  ], 34);
+  // …and ~50% of bricks + cement already in for the in-progress Brickwork GF.
+  seedOrder(SITE_1, 5, 'metro-buildmart', [
+    { idx: 0, frac: 0.5 }, { idx: 1, frac: 0.55 },
+  ], 6);
+
+  // GVR Meadows — delivered history…
+  seedOrder(SITE_2, 1, 'deccan-cement-agencies', [{ idx: 0, frac: 1 }], 64);
+  seedOrder(SITE_2, 2, 'sri-balaji-traders', [
+    { idx: 0, frac: 1 }, { idx: 2, frac: 1 }, { idx: 3, frac: 1 },
+  ], 47);
+  // …in-progress First-floor slab: 60% cement delivered, 45% steel en route.
+  seedOrder(SITE_2, 4, 'deccan-cement-agencies', [{ idx: 0, frac: 0.6 }], 4);
+  seedOrder(SITE_2, 4, 'knr-steel-hardware', [
+    { idx: 1, frac: 0.45 }, { idx: 4, frac: 0.4 },
+  ], 1);
+
+  // Lakeview Residency — footing delivered, plinth partially ordered today.
+  seedOrder(SITE_3, 1, 'warangal-building-supplies', [
+    { idx: 0, frac: 1 }, { idx: 1, frac: 1 }, { idx: 2, frac: 1 },
+  ], 11);
+  seedOrder(SITE_3, 2, 'warangal-building-supplies', [
+    { idx: 0, frac: 0.4 }, { idx: 1, frac: 0.5 },
+  ], 0);
+
+  return {
+    seedVersion: SEED_VERSION,
+    sites,
+    cameras,
+    dailyCounts,
+    bills,
+    reconciliations,
+    alerts,
+    ledger,
+    clips,
+    stages,
+    boqItems,
+    vendors,
+    orders,
+  };
 }

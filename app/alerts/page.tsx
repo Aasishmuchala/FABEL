@@ -80,14 +80,14 @@ export default async function AlertsPage({
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.14em] text-muted">
+          <p className="text-[13px] font-medium text-muted">
             Tamper, offline and power events — every alert is also a ledger
             entry
           </p>
-          <h1 className="mt-1 font-display text-2xl font-bold text-text">
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-text">
             Alerts
           </h1>
         </div>
@@ -96,9 +96,9 @@ export default async function AlertsPage({
         </Badge>
       </div>
 
-      <div className="flex items-start gap-3.5 rounded-2xl border border-line bg-surface p-5">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal/12">
-          <ShieldCheck size={18} className="text-teal" aria-hidden />
+      <div className="flex items-start gap-3.5 rounded-[18px] border border-hairline bg-surface p-5 shadow-card">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-ok-bg">
+          <ShieldCheck size={18} strokeWidth={1.75} className="text-ok" aria-hidden />
         </span>
         <div>
           <p className="text-sm font-medium text-text">Downtime is evidence</p>
@@ -132,10 +132,10 @@ export default async function AlertsPage({
         <div className="space-y-5">
           {Array.from(groups.entries()).map(([date, dayAlerts]) => (
             <section key={date}>
-              <p className="mb-2 text-[11px] uppercase tracking-[0.14em] text-muted">
+              <p className="mb-2 text-[13px] font-medium text-muted">
                 {dayLabel(date)}
               </p>
-              <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
+              <div className="divide-y divide-line overflow-hidden rounded-[18px] border border-hairline bg-surface shadow-card">
                 {dayAlerts.map((alert) => (
                   <AlertRow
                     key={alert.id}
