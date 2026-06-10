@@ -1,26 +1,126 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-bg: #0a0e13;
+  /* Deepest surface — live camera tiles only. */
+  --color-bg-deep: #070a0f;
+  --color-surface: #10151c;
+  --color-surface-2: #161d26;
+  --color-line: rgba(255, 255, 255, 0.07);
+  /* Brighter hairline for emphasized rules (e.g. chart last-day marker). */
+  --color-line-bright: rgba(255, 255, 255, 0.12);
+  --color-text: #e6edf3;
+  --color-muted: #8b98a5;
+  --color-teal: #2dd4a7;
+  --color-amber: #f5b941;
+  --color-red: #f0564a;
+  --color-purple: #8b7cf6;
+
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100%;
+  background-color: var(--color-bg);
+  background-image: radial-gradient(
+    rgba(255, 255, 255, 0.03) 1px,
+    transparent 1px
+  );
+  background-size: 24px 24px;
+  color: var(--color-text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: rgba(45, 212, 167, 0.28);
+  color: #e6edf3;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  border: 2px solid var(--color-bg);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+
+/* Live tile effects (the only place gradients are allowed) */
+@keyframes live-scan {
+  0% {
+    transform: translateY(-120%);
+  }
+  100% {
+    transform: translateY(520%);
+  }
+}
+
+@keyframes live-flicker {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  48% {
+    opacity: 0.4;
+  }
+  52% {
+    opacity: 0.62;
+  }
+  78% {
+    opacity: 0.45;
+  }
+}
+
+.live-tile-bg {
+  background-image: radial-gradient(
+    ellipse at 50% 38%,
+    rgba(45, 212, 167, 0.05),
+    rgba(10, 14, 19, 0) 70%
+  );
+}
+
+.live-tile-noise {
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.028) 0px,
+    rgba(255, 255, 255, 0.028) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  animation: live-flicker 4.2s ease-in-out infinite;
+}
+
+.live-tile-scan {
+  background-image: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(45, 212, 167, 0.06) 45%,
+    rgba(45, 212, 167, 0.09) 50%,
+    rgba(45, 212, 167, 0.06) 55%,
+    transparent
+  );
+  animation: live-scan 5.5s linear infinite;
 }

@@ -1,65 +1,187 @@
-import Image from "next/image";
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
+import {
+  getAlerts,
+  getDailyCounts,
+  getLatestDailyCount,
+  getPortfolioSummary,
+  getReconciliations,
+  getSites,
+  mondayOf,
+} from '@/lib/store';
+import { formatInr, formatRange } from '@/lib/format';
+import { StatCard } from '@/components/ui/stat-card';
+import { Badge } from '@/components/ui/badge';
+import { SectionHeader } from '@/components/ui/section-header';
+import { SiteCard, type SiteCardProps } from '@/components/dashboard/site-card';
+import { VarianceFlags } from '@/components/dashboard/variance-flags';
+import { RecentAlerts } from '@/components/dashboard/recent-alerts';
 
-export default function Home() {
+export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  // Template in the root layout does not apply to the same segment's page.
+  title: 'Portfolio · Haazri',
+  description:
+    'All sites at a glance — verified labour-day ranges, leakage detected, and camera health.',
+};
+
+function toDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function ViewAllLink({ href }: { href: string }) {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <Link
+      href={href}
+      className="inline-flex items-center gap-1 text-xs font-medium text-muted transition-colors hover:text-text"
+    >
+      View all
+      <ArrowRight size={13} aria-hidden />
+    </Link>
+  );
+}
+
+export default function PortfolioPage() {
+  const sites = getSites();
+  const summary = getPortfolioSummary();
+
+  const now = new Date();
+  now.setHours(12, 0, 0, 0);
+  const today = toDateStr(now);
+  const weekStart = mondayOf(today);
+  const cutoff = new Date(now);
+  cutoff.setDate(cutoff.getDate() - 30);
+  const cutoffStr = toDateStr(cutoff);
+
+  const weekCounts = sites.flatMap((site) =>
+    getDailyCounts(site.id).filter(
+      (c) => c.date >= weekStart && c.date <= today,
+    ),
+  );
+  const weekVerifiedMin = weekCounts.reduce((s, c) => s + c.verifiedMin, 0);
+  const weekVerifiedMax = weekCounts.reduce((s, c) => s + c.verifiedMax, 0);
+
+  const cards: SiteCardProps[] = sites.map((site) => {
+    const recons = getReconciliations(site.id); // newest week first
+    const recent8 = recons.slice(0, 8).reverse(); // oldest → newest
+    // Only a count dated today is "Verified today" — a stale latest count
+    // (e.g. yesterday's) must not masquerade as live verification.
+    const latestCount = getLatestDailyCount(site.id);
+    const fresh = latestCount?.date === today;
+    return {
+      site,
+      todayCount: fresh ? latestCount : undefined,
+      lastVerifiedDate: !fresh ? latestCount?.date : undefined,
+      verifiedSeries: recent8.map((r) => (r.verifiedMin + r.verifiedMax) / 2),
+      billedSeries: recent8.map((r) => r.billedLabourDays),
+      monthSavingsInr: recons
+        .filter((r) => r.weekStart >= cutoffStr)
+        .reduce((sum, r) => sum + r.savingsInr, 0),
+      openAlerts: getAlerts(site.id).filter((a) => !a.resolvedIso).length,
+    };
+  });
+
+  const siteNames = Object.fromEntries(sites.map((s) => [s.id, s.name]));
+  const varianceFlags = getReconciliations()
+    .filter((r) => r.flag !== 'ok')
+    .slice(0, 5);
+  const recentAlerts = getAlerts().slice(0, 5);
+
+  return (
+    <div className="space-y-8">
+      {/* Page header */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.14em] text-muted">
+            All sites · live ledger
           </p>
+          <h1 className="mt-1 font-display text-2xl font-bold text-text">
+            Portfolio
+          </h1>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+        <div className="flex items-center gap-2">
+          <Badge
+            variant={
+              summary.camerasOnline === summary.camerasTotal ? 'ok' : 'warn'
+            }
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            {summary.camerasOnline}/{summary.camerasTotal} cameras online
+          </Badge>
+          {summary.pendingBills > 0 ? (
+            <Link href="/reconciliation">
+              <Badge variant="warn">
+                {summary.pendingBills}{' '}
+                {summary.pendingBills === 1 ? 'bill' : 'bills'} pending
+              </Badge>
+            </Link>
+          ) : null}
         </div>
-      </main>
+      </div>
+
+      {/* KPI row */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard
+          label="Verified this week"
+          value={formatRange(weekVerifiedMin, weekVerifiedMax)}
+          sub="Labour-days across all sites"
+        />
+        <StatCard
+          label="Leakage detected · 30d"
+          value={formatInr(summary.savingsLast30dInr)}
+          sub="Billed vs camera-verified gap"
+        />
+        <StatCard
+          label="Open alerts"
+          value={summary.openAlerts}
+          delta={summary.openAlerts > 0 ? 'needs attention' : undefined}
+          deltaTone="danger"
+          sub="Tamper and camera health events"
+        />
+        <StatCard
+          label="Sites monitored"
+          value={summary.totalSites}
+          sub={`${summary.camerasOnline} of ${summary.camerasTotal} cameras online`}
+        />
+      </div>
+
+      {/* Site cards */}
+      <section>
+        <SectionHeader
+          label="Sites"
+          title="Your sites today"
+          description="Verified ranges from the man-gate, reconciled weekly against contractor bills."
+          className="mb-4"
+        />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {cards.map((card) => (
+            <SiteCard key={card.site.id} {...card} />
+          ))}
+        </div>
+      </section>
+
+      {/* Variance flags + recent alerts */}
+      <div className="grid gap-8 lg:grid-cols-2 lg:gap-6">
+        <section>
+          <SectionHeader
+            label="Reconciliation"
+            title="Latest variance flags"
+            actions={<ViewAllLink href="/reconciliation" />}
+            className="mb-4"
+          />
+          <VarianceFlags items={varianceFlags} siteNames={siteNames} />
+        </section>
+        <section>
+          <SectionHeader
+            label="Camera health"
+            title="Recent alerts"
+            actions={<ViewAllLink href="/alerts" />}
+            className="mb-4"
+          />
+          <RecentAlerts items={recentAlerts} siteNames={siteNames} />
+        </section>
+      </div>
     </div>
   );
 }
