@@ -20,6 +20,7 @@ import {
   getOrderedQty,
   getReconciliations,
   getSite,
+  getStageProgress,
   getStages,
   mondayOf,
   verifyLedger,
@@ -108,8 +109,9 @@ export default async function SiteDetailPage({
 
   const clips = getClips(id);
 
-  // Procurement summary: the open stage plus ordered % by BOQ value.
+  // Progress + procurement summary: lifecycle position plus ordered % by BOQ value.
   const stages = getStages(id);
+  const progress = getStageProgress(id);
   const openStage = stages.find((s) => s.status === 'in-progress');
   let orderedPct: number | null = null;
   if (openStage) {
@@ -277,25 +279,33 @@ export default async function SiteDetailPage({
         )}
       </section>
 
-      {/* procurement summary */}
+      {/* progress + procurement summary */}
       <section className="space-y-4">
         <SectionHeader
-          title="Procurement"
-          label="Quality-gated materials"
+          title="Progress & procurement"
+          label="Quality-gated build"
           description="Materials unlock stage by stage as quality gates pass."
         />
         <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-5 rounded-[18px] border border-hairline bg-surface p-6 shadow-card">
-          <div className="min-w-0">
-            <p className="text-[13px] font-medium text-muted">Stage in progress</p>
+          <Link
+            href={`/progress?site=${site.id}`}
+            className="group min-w-0"
+            aria-label={`Open stage progress for ${site.name}`}
+          >
+            <p className="text-[13px] font-medium text-muted">Build progress</p>
             <p className="mt-1 truncate text-lg font-semibold tracking-tight text-text">
-              {openStage ? openStage.name : 'No stage open'}
+              {`Stage ${progress.current.order} of ${progress.total} · ${progress.overallPct}% — ${progress.current.name}`}
             </p>
-            <p className="mt-0.5 text-[13px] text-muted">
-              {openStage
-                ? `Stage ${openStage.order} of ${stages.length} · quality gate open`
-                : 'All gates closed for materials'}
+            <p className="mt-0.5 inline-flex items-center gap-1 text-[13px] font-medium text-accent">
+              View progress
+              <ArrowRight
+                size={13}
+                strokeWidth={1.75}
+                aria-hidden
+                className="transition-transform group-hover:translate-x-0.5"
+              />
             </p>
-          </div>
+          </Link>
           {orderedPct !== null ? (
             <div>
               <p className="text-[13px] font-medium text-muted">

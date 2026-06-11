@@ -18,6 +18,8 @@ export type Confidence = 'calibrated' | 'calibrating';
 export type BillStatus = 'pending' | 'reconciled';
 export type ReconciliationFlag = 'ok' | 'review' | 'variance';
 export type AlertType = 'offline' | 'tamper' | 'degraded' | 'power';
+/** How site evidence is captured for a stage. */
+export type CaptureMethod = 'fixed-cams' | 'walk-360' | 'gate-sweep' | 'laser-tls';
 
 export interface Site {
   id: string;
@@ -101,17 +103,33 @@ export interface EvidenceClip {
   durationSec: number;
 }
 
+/** One line of a stage's concealment-gate checklist. */
+export interface ChecklistItem {
+  label: string;
+  done: boolean;
+}
+
 /** Construction stage with a quality gate; materials unlock stage-by-stage. */
 export interface Stage {
   id: string;
   siteId: string;
   name: string;
-  /** 1-based position in the build sequence. */
+  /** 1-based position in the build sequence (1–14). */
   order: number;
   status: StageStatus;
   /** Date (YYYY-MM-DD) the quality gate passed; only on 'verified' stages. */
   verifiedOn?: string;
   gateNote?: string;
+  /** 0–100. Verified stages are always 100, locked stages 0. */
+  progressPct: number;
+  /** Capture methods used to verify this stage's work. */
+  captureMethods: CaptureMethod[];
+  /** ISO timestamp of the latest capture; set on verified + in-progress stages. */
+  lastCaptureAt?: string;
+  /** Concealment-gate checklist; empty array for far-future stages. */
+  checklist: ChecklistItem[];
+  /** Deviations flagged against this stage that are still open. */
+  openDeviations: number;
 }
 
 /** Bill-of-quantities line budgeted for one stage of one site. */

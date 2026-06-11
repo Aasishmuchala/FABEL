@@ -306,11 +306,40 @@ export function resolveAlert(alertId: string, note?: string): SiteAlert | undefi
 
 /* ------------------------------------------- procurement (quality-gated) */
 
-/** Stages for a site in build order (1 → 8). */
+/** Stages for a site in build order (1 → 14). */
 export function getStages(siteId: string): Stage[] {
   return readDb()
     .stages.filter((s) => s.siteId === siteId)
     .sort((a, b) => a.order - b.order);
+}
+
+export interface StageProgress {
+  /** The in-progress stage (or, if none, the first locked / last stage). */
+  current: Stage;
+  /** Stages already verified. */
+  completed: number;
+  /** Total stages in the lifecycle (14). */
+  total: number;
+  /** Whole-site completion: mean of per-stage progressPct, rounded. */
+  overallPct: number;
+}
+
+/** Lifecycle progress for one site. Throws on an unknown siteId. */
+export function getStageProgress(siteId: string): StageProgress {
+  const stages = getStages(siteId);
+  if (stages.length === 0) throw new Error(`Unknown siteId "${siteId}"`);
+  const current =
+    stages.find((s) => s.status === 'in-progress') ??
+    stages.find((s) => s.status === 'locked') ??
+    stages[stages.length - 1];
+  return {
+    current,
+    completed: stages.filter((s) => s.status === 'verified').length,
+    total: stages.length,
+    overallPct: Math.round(
+      stages.reduce((sum, s) => sum + s.progressPct, 0) / stages.length,
+    ),
+  };
 }
 
 /** BOQ items for a site, optionally narrowed to one stage; in stage/BOQ order. */

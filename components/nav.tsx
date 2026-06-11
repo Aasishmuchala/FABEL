@@ -2,14 +2,16 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Building2, Package, Scale, Bell } from 'lucide-react';
+import { Building2, ListChecks, Package, Scale, Bell } from 'lucide-react';
 import { cn } from '@/lib/format';
 
+/** `short` is the mobile tab-bar label — five tabs must fit a 375px viewport. */
 const NAV_ITEMS = [
-  { href: '/', label: 'Portfolio', icon: Building2 },
-  { href: '/procurement', label: 'Procurement', icon: Package },
-  { href: '/reconciliation', label: 'Reconciliation', icon: Scale },
-  { href: '/alerts', label: 'Alerts', icon: Bell },
+  { href: '/', label: 'Portfolio', short: 'Portfolio', icon: Building2 },
+  { href: '/progress', label: 'Progress', short: 'Progress', icon: ListChecks },
+  { href: '/procurement', label: 'Procurement', short: 'Procure', icon: Package },
+  { href: '/reconciliation', label: 'Reconciliation', short: 'Reconcile', icon: Scale },
+  { href: '/alerts', label: 'Alerts', short: 'Alerts', icon: Bell },
 ] as const;
 
 function isActive(pathname: string, href: string): boolean {
@@ -65,21 +67,22 @@ export function Nav() {
 
       {/* Frosted mobile bottom tab bar */}
       <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-hairline bg-white/80 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl sm:hidden">
-        {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+        {NAV_ITEMS.map(({ href, label, short, icon: Icon }) => {
           const active = isActive(pathname, href);
           return (
             <Link
               key={href}
               href={href}
+              aria-label={label}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'flex min-w-0 flex-1 flex-col items-center gap-1 py-2.5 text-[12px] font-medium transition-colors',
+                'flex min-w-0 flex-1 flex-col items-center gap-1 py-2.5 text-[10.5px] font-medium transition-colors',
                 active ? 'text-accent' : 'text-muted',
               )}
             >
-              <Icon size={18} strokeWidth={1.75} />
+              <Icon size={18} strokeWidth={1.75} aria-hidden />
               <span className="max-w-full truncate whitespace-nowrap px-1">
-                {label}
+                {short}
               </span>
             </Link>
           );

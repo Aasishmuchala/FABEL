@@ -3,6 +3,7 @@ import type {
   Bill,
   BoqItem,
   Camera,
+  CaptureMethod,
   DailyCount,
   Db,
   EvidenceClip,
@@ -24,7 +25,7 @@ export const DAILY_RATE_INR = 650;
  * Bump whenever the seed/db shape changes — the store bootstrap regenerates
  * any data/db.json whose seedVersion does not match.
  */
-export const SEED_VERSION = 2;
+export const SEED_VERSION = 3;
 
 /* ---------------------------------------------------------------- PRNG */
 
@@ -162,7 +163,7 @@ export function generateSeed(): Db {
       contractor: 'SR Constructions',
       status: 'calibrated',
       gateChannelled: true,
-      startedOn: daysAgo(76),
+      startedOn: daysAgo(158),
       tagline: "Pilot zero — founder's own site",
     },
     {
@@ -172,7 +173,7 @@ export function generateSeed(): Db {
       contractor: 'GVR Labour Co',
       status: 'calibrated',
       gateChannelled: true,
-      startedOn: daysAgo(68),
+      startedOn: daysAgo(152),
     },
     {
       id: SITE_3,
@@ -465,15 +466,156 @@ export function generateSeed(): Db {
 
   /* ------------------------------------------------ stages (quality gates) */
 
-  const STAGE_NAMES = [
-    'Footing',
-    'Plinth beam',
-    'Ground-floor slab',
-    'First-floor slab',
-    'Brickwork GF',
-    'Brickwork FF',
-    'Internal plastering',
-    'Flooring & tiles',
+  // 14-stage lifecycle, site cleaning → handover. Capture methods:
+  // every stage runs fixed cams; pre-pour gates (footing + slabs) add
+  // gate-sweep + laser TLS; concealment-heavy stages (brickwork, MEP) add
+  // 360° walks + gate sweeps; surface stages add 360° walks; handover gets
+  // the final laser scan + gate sweep.
+  const STAGE_DEFS: Array<{
+    name: string;
+    captureMethods: CaptureMethod[];
+    checklist: string[];
+  }> = [
+    {
+      name: 'Site cleaning & levelling',
+      captureMethods: ['fixed-cams'],
+      checklist: [
+        'Debris & vegetation cleared',
+        'Ground levels recorded vs benchmark',
+        'Barricading & gate access in place',
+      ],
+    },
+    {
+      name: 'Excavation & PCC',
+      captureMethods: ['fixed-cams'],
+      checklist: [
+        'Excavation depth vs foundation drawing',
+        'Soil strata matches design assumption',
+        'Anti-termite treatment applied',
+        'PCC level & thickness checked',
+      ],
+    },
+    {
+      name: 'Footing & foundation',
+      captureMethods: ['fixed-cams', 'gate-sweep', 'laser-tls'],
+      checklist: [
+        'Footing pit dimensions vs drawing',
+        'Rebar size & spacing vs structural drawing',
+        'Cover blocks placed',
+        'Cube test samples cast',
+      ],
+    },
+    {
+      name: 'Plinth & backfill',
+      captureMethods: ['fixed-cams'],
+      checklist: [
+        'Plinth beam levels vs drawing',
+        'DPC laid before backfill',
+        'Backfill compacted in layers',
+      ],
+    },
+    {
+      name: 'Columns GF',
+      captureMethods: ['fixed-cams'],
+      checklist: [
+        'Column positions vs grid lines',
+        'Rebar size & laps vs structural drawing',
+        'Verticality (plumb) checked',
+        'Cube test samples cast',
+      ],
+    },
+    {
+      name: 'Ground-floor slab',
+      captureMethods: ['fixed-cams', 'gate-sweep', 'laser-tls'],
+      checklist: [
+        'Rebar size & spacing vs structural drawing',
+        'In-slab conduits match MEP layout',
+        'Sleeves & openings positioned',
+        'Shuttering level & supports',
+        'Cube test samples cast',
+      ],
+    },
+    {
+      name: 'Brickwork GF',
+      captureMethods: ['fixed-cams', 'walk-360', 'gate-sweep'],
+      checklist: [
+        'Wall positions vs plan',
+        'Openings sized per door-window schedule',
+        'Lintel levels checked',
+        'Mortar mix & curing logged',
+      ],
+    },
+    {
+      name: 'Columns FF',
+      captureMethods: ['fixed-cams'],
+      checklist: [
+        'Column positions vs grid lines',
+        'Rebar size & laps vs structural drawing',
+        'Verticality (plumb) checked',
+        'Cube test samples cast',
+      ],
+    },
+    {
+      name: 'First-floor slab',
+      captureMethods: ['fixed-cams', 'gate-sweep', 'laser-tls'],
+      checklist: [
+        'Rebar size & spacing vs structural drawing',
+        'In-slab conduits match MEP layout',
+        'Sleeves & openings positioned',
+        'Shuttering level & supports',
+        'Cube test samples cast',
+      ],
+    },
+    {
+      name: 'Brickwork FF',
+      captureMethods: ['fixed-cams', 'walk-360', 'gate-sweep'],
+      checklist: [
+        'Wall positions vs plan',
+        'Openings sized per door-window schedule',
+        'Lintel levels checked',
+        'Mortar mix & curing logged',
+      ],
+    },
+    {
+      name: 'MEP rough-in',
+      captureMethods: ['fixed-cams', 'walk-360', 'gate-sweep'],
+      checklist: [
+        'Conduit routing vs electrical drawing',
+        'Plumbing pressure test logged',
+        'DB & switchboard positions verified',
+        'Drainage slopes checked',
+      ],
+    },
+    {
+      name: 'Plastering',
+      captureMethods: ['fixed-cams', 'walk-360'],
+      checklist: [
+        'Surface prep & hacking done',
+        'Plaster thickness & plumb checked',
+        'Chases filled with mesh',
+        'Curing schedule logged',
+      ],
+    },
+    {
+      name: 'Waterproofing & flooring',
+      captureMethods: ['fixed-cams', 'walk-360'],
+      checklist: [
+        'Membrane coverage complete',
+        'Ponding test passed',
+        'Upturns at walls to 300 mm',
+        'Floor levels & slopes vs drawing',
+      ],
+    },
+    {
+      name: 'Finishing & handover',
+      captureMethods: ['fixed-cams', 'laser-tls', 'gate-sweep'],
+      checklist: [
+        'Paint finish & shade approved',
+        'Fittings & fixtures installed',
+        'Snag list closed',
+        'Handover documents compiled',
+      ],
+    },
   ];
 
   const stageIdOf = (siteId: string, order: number) => `${siteId}-stage-${order}`;
@@ -481,40 +623,109 @@ export function generateSeed(): Db {
   const stages: Stage[] = [];
   const makeStages = (
     siteId: string,
-    inProgressOrder: number,
-    verifiedDaysAgo: number[],
-    gateNotes: Record<number, string> = {},
+    opts: {
+      /** 1-based order of the single in-progress stage. */
+      inProgressOrder: number;
+      /** progressPct of the in-progress stage (verified = 100, locked = 0). */
+      inProgressPct: number;
+      /** verifiedOn (days ago) for stages 1 … inProgressOrder − 1, in order. */
+      verifiedDaysAgo: number[];
+      /** How many checklist items are ticked on the in-progress stage. */
+      checklistDone: number;
+      /** Latest capture on the in-progress stage (days ago + HH:MM). */
+      lastCaptureDaysAgo: number;
+      lastCaptureTime: string;
+      gateNotes?: Record<number, string>;
+      openDeviations?: Record<number, number>;
+    },
   ) => {
-    STAGE_NAMES.forEach((name, idx) => {
+    STAGE_DEFS.forEach((def, idx) => {
       const order = idx + 1;
       const status: Stage['status'] =
-        order < inProgressOrder
+        order < opts.inProgressOrder
           ? 'verified'
-          : order === inProgressOrder
+          : order === opts.inProgressOrder
             ? 'in-progress'
             : 'locked';
+
+      // Checklist: verified stages are fully ticked; the in-progress stage is
+      // partially ticked; the next gate's checklist is staged (all unticked);
+      // far-future stages stay empty until their gate is near.
+      const checklist: Stage['checklist'] =
+        status === 'verified'
+          ? def.checklist.map((label) => ({ label, done: true }))
+          : status === 'in-progress'
+            ? def.checklist.map((label, i) => ({
+                label,
+                done: i < opts.checklistDone,
+              }))
+            : order === opts.inProgressOrder + 1
+              ? def.checklist.map((label) => ({ label, done: false }))
+              : [];
+
+      const verifiedOn =
+        status === 'verified' ? daysAgo(opts.verifiedDaysAgo[idx]) : undefined;
+      const lastCaptureAt =
+        status === 'verified' && verifiedOn
+          ? isoAt(verifiedOn, '17:40')
+          : status === 'in-progress'
+            ? isoAt(daysAgo(opts.lastCaptureDaysAgo), opts.lastCaptureTime)
+            : undefined;
+
       stages.push({
         id: stageIdOf(siteId, order),
         siteId,
-        name,
+        name: def.name,
         order,
         status,
-        ...(status === 'verified' ? { verifiedOn: daysAgo(verifiedDaysAgo[idx]) } : {}),
-        ...(gateNotes[order] ? { gateNote: gateNotes[order] } : {}),
+        ...(verifiedOn ? { verifiedOn } : {}),
+        ...(opts.gateNotes?.[order] ? { gateNote: opts.gateNotes[order] } : {}),
+        progressPct:
+          status === 'verified' ? 100 : status === 'in-progress' ? opts.inProgressPct : 0,
+        captureMethods: def.captureMethods,
+        ...(lastCaptureAt ? { lastCaptureAt } : {}),
+        checklist,
+        openDeviations: opts.openDeviations?.[order] ?? 0,
       });
     });
   };
 
-  // Sunrise Heights: 1–4 verified across the past ~60 days, 5 in progress.
-  makeStages(SITE_1, 5, [58, 43, 26, 9], {
-    4: 'Slab cube test passed — 28-day strength report on file',
+  // Sunrise Heights: 1–7 verified across ~5 months, Columns FF at 60%.
+  makeStages(SITE_1, {
+    inProgressOrder: 8,
+    inProgressPct: 60,
+    verifiedDaysAgo: [148, 126, 104, 82, 55, 30, 12],
+    checklistDone: 2,
+    lastCaptureDaysAgo: 0,
+    lastCaptureTime: '07:55',
+    gateNotes: {
+      6: 'Slab cube test passed — 28-day strength report on file',
+    },
   });
-  // GVR Meadows: 1–3 verified, 4 in progress; 5 locked behind the slab gate.
-  makeStages(SITE_2, 4, [55, 38, 20], {
-    5: 'Blocked — first-floor slab gate pending verification',
+  // GVR Meadows: 1–8 verified, First-floor slab at 45% with 2 open deviations;
+  // Brickwork FF locked behind the slab gate.
+  makeStages(SITE_2, {
+    inProgressOrder: 9,
+    inProgressPct: 45,
+    verifiedDaysAgo: [145, 128, 110, 92, 70, 48, 27, 10],
+    checklistDone: 3,
+    lastCaptureDaysAgo: 0,
+    lastCaptureTime: '08:10',
+    gateNotes: {
+      9: '2 open deviations — conduit run off MEP layout in zone B; shuttering level out of tolerance at NE corner',
+      10: 'Blocked — first-floor slab gate pending verification',
+    },
+    openDeviations: { 9: 2 },
   });
-  // Lakeview Residency: 1 verified, 2 in progress.
-  makeStages(SITE_3, 2, [6]);
+  // Lakeview Residency: 1–2 verified, Footing & foundation at 30%.
+  makeStages(SITE_3, {
+    inProgressOrder: 3,
+    inProgressPct: 30,
+    verifiedDaysAgo: [10, 4],
+    checklistDone: 1,
+    lastCaptureDaysAgo: 1,
+    lastCaptureTime: '16:45',
+  });
 
   /* ------------------------------------------------------------------ BOQ */
 
@@ -526,8 +737,20 @@ export function generateSeed(): Db {
     qty: number;
   }
 
-  // Index 0..7 ↔ stage order 1..8. Rates are realistic Indian market rates.
+  // Index 0..13 ↔ stage order 1..14. Rates are realistic Indian market rates.
   const BOQ_TEMPLATES: BoqTemplate[][] = [
+    // 1 — Site cleaning & levelling
+    [
+      { description: 'Murram fill & levelling', category: 'aggregate', unit: 'cft', rate: 28, qty: 800 },
+      { description: 'River sand (levelling blanket)', category: 'sand', unit: 'cft', rate: 45, qty: 250 },
+    ],
+    // 2 — Excavation & PCC
+    [
+      { description: 'OPC 53-grade cement (PCC)', category: 'cement', unit: 'bag', rate: 380, qty: 110 },
+      { description: 'River sand', category: 'sand', unit: 'cft', rate: 45, qty: 380 },
+      { description: 'Coarse aggregate 40 mm', category: 'aggregate', unit: 'cft', rate: 38, qty: 520 },
+    ],
+    // 3 — Footing & foundation
     [
       { description: 'OPC 53-grade cement', category: 'cement', unit: 'bag', rate: 380, qty: 220 },
       { description: 'TMT steel Fe-550, 12 mm', category: 'steel', unit: 'kg', rate: 62, qty: 2800 },
@@ -535,6 +758,7 @@ export function generateSeed(): Db {
       { description: 'Coarse aggregate 20 mm', category: 'aggregate', unit: 'cft', rate: 38, qty: 1200 },
       { description: 'Shuttering plywood + props', category: 'shuttering', unit: 'sqft', rate: 55, qty: 600 },
     ],
+    // 4 — Plinth & backfill
     [
       { description: 'OPC 53-grade cement', category: 'cement', unit: 'bag', rate: 380, qty: 140 },
       { description: 'TMT steel Fe-550, 10 mm', category: 'steel', unit: 'kg', rate: 62, qty: 1900 },
@@ -542,6 +766,14 @@ export function generateSeed(): Db {
       { description: 'Coarse aggregate 20 mm', category: 'aggregate', unit: 'cft', rate: 38, qty: 700 },
       { description: 'Beam shuttering + props', category: 'shuttering', unit: 'sqft', rate: 55, qty: 480 },
     ],
+    // 5 — Columns GF
+    [
+      { description: 'OPC 53-grade cement', category: 'cement', unit: 'bag', rate: 380, qty: 90 },
+      { description: 'TMT steel Fe-550, 16 mm', category: 'steel', unit: 'kg', rate: 62, qty: 1600 },
+      { description: 'Coarse aggregate 20 mm', category: 'aggregate', unit: 'cft', rate: 38, qty: 300 },
+      { description: 'Column box shuttering', category: 'shuttering', unit: 'sqft', rate: 55, qty: 360 },
+    ],
+    // 6 — Ground-floor slab
     [
       { description: 'OPC 53-grade cement', category: 'cement', unit: 'bag', rate: 380, qty: 310 },
       { description: 'TMT steel Fe-550, 8/10/12 mm', category: 'steel', unit: 'kg', rate: 62, qty: 3600 },
@@ -550,6 +782,21 @@ export function generateSeed(): Db {
       { description: 'Slab shuttering plates + jacks', category: 'shuttering', unit: 'sqft', rate: 55, qty: 1450 },
       { description: 'PVC conduit 25 mm, in-slab', category: 'electrical', unit: 'm', rate: 48, qty: 350 },
     ],
+    // 7 — Brickwork GF
+    [
+      { description: 'Red clay bricks, 9 in', category: 'bricks', unit: 'no', rate: 8, qty: 18000 },
+      { description: 'OPC 53-grade cement (mortar)', category: 'cement', unit: 'bag', rate: 380, qty: 95 },
+      { description: 'River sand (mortar)', category: 'sand', unit: 'cft', rate: 45, qty: 620 },
+      { description: 'CPVC sleeves & wall pipes', category: 'plumbing', unit: 'm', rate: 140, qty: 60 },
+    ],
+    // 8 — Columns FF
+    [
+      { description: 'OPC 53-grade cement', category: 'cement', unit: 'bag', rate: 380, qty: 85 },
+      { description: 'TMT steel Fe-550, 16 mm', category: 'steel', unit: 'kg', rate: 62, qty: 1450 },
+      { description: 'Coarse aggregate 20 mm', category: 'aggregate', unit: 'cft', rate: 38, qty: 280 },
+      { description: 'Column box shuttering', category: 'shuttering', unit: 'sqft', rate: 55, qty: 350 },
+    ],
+    // 9 — First-floor slab
     [
       { description: 'OPC 53-grade cement', category: 'cement', unit: 'bag', rate: 380, qty: 290 },
       { description: 'TMT steel Fe-550, 8/10/12 mm', category: 'steel', unit: 'kg', rate: 62, qty: 3400 },
@@ -558,29 +805,41 @@ export function generateSeed(): Db {
       { description: 'Slab shuttering plates + jacks', category: 'shuttering', unit: 'sqft', rate: 55, qty: 1450 },
       { description: 'PVC conduit 25 mm, in-slab', category: 'electrical', unit: 'm', rate: 48, qty: 330 },
     ],
-    [
-      { description: 'Red clay bricks, 9 in', category: 'bricks', unit: 'no', rate: 8, qty: 18000 },
-      { description: 'OPC 53-grade cement (mortar)', category: 'cement', unit: 'bag', rate: 380, qty: 95 },
-      { description: 'River sand (mortar)', category: 'sand', unit: 'cft', rate: 45, qty: 620 },
-      { description: 'CPVC sleeves & wall pipes', category: 'plumbing', unit: 'm', rate: 140, qty: 60 },
-    ],
+    // 10 — Brickwork FF
     [
       { description: 'Red clay bricks, 9 in', category: 'bricks', unit: 'no', rate: 8, qty: 16500 },
       { description: 'OPC 53-grade cement (mortar)', category: 'cement', unit: 'bag', rate: 380, qty: 85 },
       { description: 'River sand (mortar)', category: 'sand', unit: 'cft', rate: 45, qty: 560 },
       { description: 'Modular switch boxes + conduit', category: 'electrical', unit: 'no', rate: 85, qty: 120 },
     ],
+    // 11 — MEP rough-in
+    [
+      { description: 'PVC conduit 25 mm + bends', category: 'electrical', unit: 'm', rate: 48, qty: 420 },
+      { description: 'Modular switch & DB boxes', category: 'electrical', unit: 'no', rate: 85, qty: 140 },
+      { description: 'CPVC lines, 3/4 in', category: 'plumbing', unit: 'm', rate: 140, qty: 240 },
+      { description: 'SWR drainage pipes 110 mm', category: 'plumbing', unit: 'm', rate: 190, qty: 90 },
+    ],
+    // 12 — Plastering
     [
       { description: 'OPC 53-grade cement (plaster)', category: 'cement', unit: 'bag', rate: 380, qty: 180 },
       { description: 'Plaster sand, fine', category: 'sand', unit: 'cft', rate: 45, qty: 1400 },
       { description: 'Wiring conduit in chase', category: 'electrical', unit: 'm', rate: 48, qty: 280 },
       { description: 'Concealed CPVC lines', category: 'plumbing', unit: 'm', rate: 140, qty: 180 },
     ],
+    // 13 — Waterproofing & flooring
     [
       { description: 'Vitrified tiles 600×600', category: 'tiles', unit: 'sqft', rate: 65, qty: 2400 },
       { description: 'OPC 53-grade cement (bedding)', category: 'cement', unit: 'bag', rate: 380, qty: 70 },
       { description: 'Screed sand', category: 'sand', unit: 'cft', rate: 45, qty: 380 },
+      { description: 'Acrylic waterproofing membrane', category: 'paint', unit: 'litre', rate: 420, qty: 110 },
       { description: 'Interior emulsion paint', category: 'paint', unit: 'litre', rate: 310, qty: 220 },
+    ],
+    // 14 — Finishing & handover
+    [
+      { description: 'Exterior weatherproof emulsion', category: 'paint', unit: 'litre', rate: 340, qty: 180 },
+      { description: 'Switches, sockets & fixtures', category: 'electrical', unit: 'no', rate: 160, qty: 260 },
+      { description: 'CP fittings & sanitaryware sets', category: 'plumbing', unit: 'no', rate: 2400, qty: 24 },
+      { description: 'Skirting & threshold tiles', category: 'tiles', unit: 'sqft', rate: 70, qty: 220 },
     ],
   ];
 
@@ -736,33 +995,38 @@ export function generateSeed(): Db {
   };
 
   // Sunrise Heights — delivered history on verified stages…
-  seedOrder(SITE_1, 1, 'sri-balaji-traders', [
+  seedOrder(SITE_1, 3, 'sri-balaji-traders', [
     { idx: 0, frac: 1 }, { idx: 2, frac: 1 }, { idx: 3, frac: 1 },
-  ], 70);
-  seedOrder(SITE_1, 3, 'knr-steel-hardware', [
+  ], 112);
+  seedOrder(SITE_1, 6, 'knr-steel-hardware', [
     { idx: 1, frac: 1 }, { idx: 4, frac: 1 },
-  ], 34);
-  // …and ~50% of bricks + cement already in for the in-progress Brickwork GF.
-  seedOrder(SITE_1, 5, 'metro-buildmart', [
-    { idx: 0, frac: 0.5 }, { idx: 1, frac: 0.55 },
-  ], 6);
+  ], 40);
+  seedOrder(SITE_1, 7, 'metro-buildmart', [
+    { idx: 0, frac: 1 }, { idx: 1, frac: 1 },
+  ], 24);
+  // …and the in-progress Columns FF: 50% cement delivered, 55% steel en route.
+  seedOrder(SITE_1, 8, 'metro-buildmart', [{ idx: 0, frac: 0.5 }], 6);
+  seedOrder(SITE_1, 8, 'knr-steel-hardware', [{ idx: 1, frac: 0.55 }], 2);
 
   // GVR Meadows — delivered history…
-  seedOrder(SITE_2, 1, 'deccan-cement-agencies', [{ idx: 0, frac: 1 }], 64);
-  seedOrder(SITE_2, 2, 'sri-balaji-traders', [
+  seedOrder(SITE_2, 3, 'deccan-cement-agencies', [{ idx: 0, frac: 1 }], 118);
+  seedOrder(SITE_2, 4, 'sri-balaji-traders', [
     { idx: 0, frac: 1 }, { idx: 2, frac: 1 }, { idx: 3, frac: 1 },
-  ], 47);
-  // …in-progress First-floor slab: 60% cement delivered, 45% steel en route.
-  seedOrder(SITE_2, 4, 'deccan-cement-agencies', [{ idx: 0, frac: 0.6 }], 4);
-  seedOrder(SITE_2, 4, 'knr-steel-hardware', [
+  ], 99);
+  // …in-progress First-floor slab: 60% cement delivered, 45% steel en route
+  // (≈ 39–40% of the stage BOQ by value).
+  seedOrder(SITE_2, 9, 'deccan-cement-agencies', [{ idx: 0, frac: 0.6 }], 4);
+  seedOrder(SITE_2, 9, 'knr-steel-hardware', [
     { idx: 1, frac: 0.45 }, { idx: 4, frac: 0.4 },
   ], 1);
 
-  // Lakeview Residency — footing delivered, plinth partially ordered today.
-  seedOrder(SITE_3, 1, 'warangal-building-supplies', [
-    { idx: 0, frac: 1 }, { idx: 1, frac: 1 }, { idx: 2, frac: 1 },
-  ], 11);
+  // Lakeview Residency — PCC delivered, footing partially ordered today.
+  // (Placed AFTER stage 1's gate passed 10 days ago — orders never predate
+  // their stage unlocking.)
   seedOrder(SITE_3, 2, 'warangal-building-supplies', [
+    { idx: 0, frac: 1 }, { idx: 1, frac: 1 }, { idx: 2, frac: 1 },
+  ], 9);
+  seedOrder(SITE_3, 3, 'warangal-building-supplies', [
     { idx: 0, frac: 0.4 }, { idx: 1, frac: 0.5 },
   ], 0);
 

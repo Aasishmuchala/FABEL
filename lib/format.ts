@@ -1,7 +1,17 @@
+import type { CaptureMethod } from './types';
+
 /** Join class names, skipping falsy values. */
 export function cn(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(' ');
 }
+
+/** Sentence-case display labels for stage capture methods. */
+export const CAPTURE_METHOD_LABELS: Record<CaptureMethod, string> = {
+  'fixed-cams': 'Fixed cameras',
+  'walk-360': '360° walk',
+  'gate-sweep': 'Gate sweep',
+  'laser-tls': 'Laser scan',
+};
 
 /** "₹1,62,500" — rupees with Indian digit grouping. */
 export function formatInr(value: number): string {
